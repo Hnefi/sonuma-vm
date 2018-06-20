@@ -49,7 +49,7 @@
 
 #include "RMCdefines.h"
 
-#define RMC_DEV "/dev/rmc"
+#define RMC_DEV "/dev/rmc" // FIXME: it's called smth else afaik?
 
 #ifdef DEBUG
 #define DLog(M, ...) fprintf(stdout, "DEBUG %s:%d: " M "\n", __FILE__, __LINE__, ##__VA_ARGS__)
@@ -79,14 +79,14 @@ int kal_open(char *kal_name);
  * Warning: it allocates memory for WQ and pins the memory
  *          to avoid swapping to the disk.
  */
-int kal_reg_wq(int fd, rmc_wq_t **wq_ptr);
+int kal_reg_wq(int fd, rmc_wq_t **wq_ptr, int wq_id);
 
 /**
  * This func registers CQ with KAL.
  * Warning: it allocates memory for WQ and pins the memory
  *          to avoid swapping to the disk.
  */
-int kal_reg_cq(int fd, rmc_cq_t **cq_ptr);
+int kal_reg_cq(int fd, rmc_cq_t **cq_ptr, int cq_id);
 
 /**
  * This func registers local buffer with KAL.

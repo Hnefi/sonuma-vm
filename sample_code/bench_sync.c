@@ -84,7 +84,7 @@ int main(int argc, char **argv)
     printf("Failed to allocate local buffer\n");
     return -1;
   } else {
-    fprintf(stdout, "Local buffer was mapped to address %p, number of pages is %d\n",
+    fprintf(stdout, "Local buffer was mapped to address %p, number of pages is %ld\n",
 	    lbuff, buf_size/PAGE_SIZE);
   }
 
@@ -93,12 +93,12 @@ int main(int argc, char **argv)
     printf("Failed to allocate context\n");
     return -1;
   } else {
-    fprintf(stdout, "Ctx buffer was registered, ctx_size=%d, %d pages.\n",
+    fprintf(stdout, "Ctx buffer was registered, ctx_size=%ld, %ld pages.\n",
 	    ctx_size, ctx_size*sizeof(uint8_t) / PAGE_SIZE);
   }
 
   //register WQ
-  if(kal_reg_wq(fd, &wq) < 0) {
+  if(kal_reg_wq(fd, &wq,0) < 0) {
     printf("Failed to register WQ\n");
     return -1;
   } else {
@@ -106,7 +106,7 @@ int main(int argc, char **argv)
   }
 
   //register CQ
-  if(kal_reg_cq(fd, &cq) < 0) {
+  if(kal_reg_cq(fd, &cq,0) < 0) {
     printf("Failed to register CQ\n");
   } else {
     fprintf(stdout, "CQ was registered.\n");

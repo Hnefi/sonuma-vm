@@ -49,13 +49,14 @@ int kal_open(char *kal_name)
   return 0;
 }
 
-int kal_reg_wq(int fd, rmc_wq_t **wq_ptr)
+int kal_reg_wq(int fd, rmc_wq_t **wq_ptr, int wq_id)
 {
   int shmid;
   
   DLog("[kal_reg_wq] kal_reg_wq called.");
-  
-  FILE *f = fopen("wq_ref.txt", "r");
+  char fmt[15];
+  sprintf(fmt,"wq_ref_%d.txt",wq_id);
+  FILE *f = fopen(fmt, "r");
   fscanf(f, "%d", &shmid);
   printf("[kal_reg_wq] ID for the work queue is %d\n", shmid);
   *wq_ptr = (rmc_wq_t *)shmat(shmid, NULL, 0);
@@ -64,17 +65,21 @@ int kal_reg_wq(int fd, rmc_wq_t **wq_ptr)
     return -1;
   }
 
+  (*wq_ptr)->connected = true;
+
   fclose(f);
   
   return 0;
 }
 
-int kal_reg_cq(int fd, rmc_cq_t **cq_ptr)
+int kal_reg_cq(int fd, rmc_cq_t **cq_ptr, int cq_id)
 {
   int shmid;
   DLog("[kal_reg_cq] kal_reg_cq called.");
   
-  FILE *f = fopen("cq_ref.txt", "r");
+  char fmt[15];
+  sprintf(fmt,"cq_ref_%d.txt",cq_id);
+  FILE *f = fopen(fmt, "r");
   fscanf(f, "%d", &shmid);
   printf("[kal_reg_cq] ID for the completion queue is %d\n", shmid);
   *cq_ptr = (rmc_cq_t *)shmat(shmid, NULL, 0);
@@ -82,6 +87,8 @@ int kal_reg_cq(int fd, rmc_cq_t **cq_ptr)
     printf("[kal_reg_cq] shm attach failed (completion queue)\n");
     return -1;
   }
+
+  (*cq_ptr)->connected = true;
   
   fclose(f);
 

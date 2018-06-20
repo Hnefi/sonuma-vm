@@ -70,12 +70,14 @@ typedef struct rmc_wq {
   wq_entry_t q[MAX_NUM_WQ];
   uint8_t head;
   volatile uint8_t SR;
+  volatile bool connected;
 } rmc_wq_t;
 
 typedef struct rmc_cq {
   cq_entry_t q[MAX_NUM_WQ];
   uint8_t tail;
   volatile uint8_t SR;
+  volatile bool connected;
 } rmc_cq_t;
 
 typedef struct qp_info {

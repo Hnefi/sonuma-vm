@@ -105,6 +105,7 @@ int alloc_wq(rmc_wq_t **qp_wq, int wq_id)
   //setup work queue
   wq->head = 0;
   wq->SR = 1;
+  wq->connected = false;
 
   for(i=0; i<MAX_NUM_WQ; i++) {
     wq->q[i].SR = 0;
@@ -152,9 +153,10 @@ int alloc_cq(rmc_cq_t **qp_cq, int cq_id)
     DLog("[alloc_cq] WQ was pinned successfully.");
   }
 
-  //setup work queue
+  //setup completion queue
   cq->tail = 0;
   cq->SR = 1;
+  cq->connected = false;
 
   for(i=0; i<MAX_NUM_WQ; i++) {
     cq->q[i].SR = 0;
@@ -586,7 +588,8 @@ int main(int argc, char **argv)
           uint8_t* local_cq_head = &(local_CQ_heads[qp_num]);
           uint8_t* local_wq_SR = &(local_WQ_SRs[qp_num]);
           uint8_t* local_cq_SR = &(local_CQ_SRs[qp_num]);
-          while (wq->q[*local_wq_tail].SR == *local_wq_SR) {
+          while ( wq->connected == true && // poll only connected WQs;
+                  (wq->q[*local_wq_tail].SR == *local_wq_SR) ) {
 #ifdef DEBUG_PERF_RMC
               clock_gettime(CLOCK_MONOTONIC, &start_time);
 #endif
