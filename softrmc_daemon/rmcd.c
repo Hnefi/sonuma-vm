@@ -39,6 +39,7 @@
 #include <unistd.h>
 #include <assert.h>
 #include <errno.h>
+#include <stdio.h>
 
 #include <vector>
 #include <algorithm>
@@ -404,7 +405,7 @@ int ctx_alloc_grant_map(char **mem, unsigned page_cnt)
   }
 
   if(bind(listen_fd, (struct sockaddr *)&servaddr, sizeof(servaddr)) == -1) {
-    fprintf(stderr, "Address binding error\n");
+    perror("Address binding error in ctx_create_global_space.");
     exit(EXIT_FAILURE);
   }
 
