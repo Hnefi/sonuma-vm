@@ -399,13 +399,13 @@ int ctx_alloc_grant_map(char **mem, unsigned page_cnt)
   servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
   servaddr.sin_port=htons(PORT);
     
-  if((setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval))) == -1) {
-    printf("Error on setsockopt\n");
+  if((setsockopt(listen_fd, SOL_SOCKET,SO_REUSEPORT,&optval, sizeof(optval))) == -1) {
+    perror("Error on setsockopt.\n");
     exit(EXIT_FAILURE);
   }
 
   if(bind(listen_fd, (struct sockaddr *)&servaddr, sizeof(servaddr)) == -1) {
-    perror("Address binding error in ctx_create_global_space.");
+    perror("Address binding error in ctx_create_global_space.\n");
     exit(EXIT_FAILURE);
   }
 
