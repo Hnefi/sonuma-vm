@@ -48,8 +48,7 @@
 #include <assert.h>
 
 #include "RMCdefines.h"
-
-#define RMC_DEV "/dev/rmc" // FIXME: it's called smth else afaik?
+#define RMC_DEV "/dev/sonuma_rmc"
 
 #ifdef DEBUG
 #define DLog(M, ...) fprintf(stdout, "DEBUG %s:%d: " M "\n", __FILE__, __LINE__, ##__VA_ARGS__)
@@ -93,7 +92,7 @@ int kal_reg_cq(int fd, rmc_cq_t **cq_ptr, int cq_id);
  * Warning: the func pins the memory to avoid swapping to
  *          the disk.
  */
-int kal_reg_lbuff(int fd, uint8_t **buff_ptr, uint32_t num_pages);
+int kal_reg_lbuff(int fd, uint8_t **buff_ptr, uint32_t num_pages,int lb_id);
 
 /**
  * This func registers context buffer with KAL.

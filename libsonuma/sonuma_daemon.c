@@ -95,16 +95,17 @@ int kal_reg_cq(int fd, rmc_cq_t **cq_ptr, int cq_id)
   return 0;
 }
 
-int kal_reg_lbuff(int fd, uint8_t **buff_ptr, uint32_t num_pages)
+int kal_reg_lbuff(int fd, uint8_t **buff_ptr, uint32_t num_pages,int lb_id)
 {
   int shmid;
   FILE *f;
   
   if(*buff_ptr == NULL) {
-    f = fopen("local_buf_ref.txt", "r");
-
-    fscanf(f, "%d", &shmid);
-    printf("[kal_reg_lbuff] ID for the local buffer is %d\n", shmid);
+      char fmt[25];
+      sprintf(fmt,"local_buf_ref_%d.txt",lb_id);
+      f = fopen(fmt, "r");
+      fscanf(f, "%d", &shmid);
+      printf("[kal_reg_lbuff] ID for the local buffer is %d\n", shmid);
 
     *buff_ptr = (uint8_t *)shmat(shmid, NULL, 0);
     if(*buff_ptr == NULL) {

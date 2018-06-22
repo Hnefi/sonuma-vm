@@ -166,7 +166,7 @@ int alloc_cq(rmc_cq_t **qp_cq, int cq_id)
   return 0;
 }
 
-int local_buf_alloc(char **mem)
+int local_buf_alloc(char **mem,unsigned lbuf_id)
 {
   int retcode;
   FILE *f;
@@ -178,11 +178,14 @@ int local_buf_alloc(char **mem)
 	   shmid);
     *mem = (char *)shmat(shmid, NULL, 0);
 
-    f = fopen("local_buf_ref.txt", "w");
+    char fmt[15];
+    sprintf(fmt,"local_buf_ref_%d.txt",lbuf_id);
+    f = fopen(fmt, "w");
     fprintf(f, "%d", shmid);
+
     fclose(f);
   } else {
-    printf("[local_buf_alloc] shmget failed\n");
+    printf("[local_buf_alloc] shmget failed for lbuf_id = %d\n",lbuf_id);
   }
 
   if (*mem == NULL) {
@@ -521,7 +524,7 @@ int main(int argc, char **argv)
   char *local_mem_region;
 
   //local buffer
-  char *local_buffer;
+  char **local_buffers;
 
   if(argc != 4) {
     printf("[main] incorrect number of arguments\n"
@@ -535,12 +538,15 @@ int main(int argc, char **argv)
   
   wqs = (volatile rmc_wq_t**) calloc(num_qps,sizeof(rmc_wq_t*));
   cqs = (volatile rmc_cq_t**) calloc(num_qps,sizeof(rmc_cq_t*));
+  local_buffers = (char**) calloc(num_qps,sizeof(char*));
   
   //allocate a queue pair
   // FIXME: create array of WQs to expose after SRQ is done
   for(int i = 0; i < num_qps; i++) {
       alloc_wq((rmc_wq_t **)&wqs[i],i);
       alloc_cq((rmc_cq_t **)&cqs[i],i);
+      //allocate local buffer
+      local_buf_alloc(&local_buffers[i],i);
   }
 
   //create the global address space
@@ -548,9 +554,6 @@ int main(int argc, char **argv)
     printf("[main] context not allocated\n");
     return -1;
   }
-
-  //allocate local buffer
-  local_buf_alloc(&local_buffer);
   
   // WQ and CQ ptrs (per pair)
   uint8_t* local_WQ_tails= (uint8_t*)calloc(num_qps,sizeof(uint8_t));
@@ -580,11 +583,13 @@ int main(int argc, char **argv)
   // local pointers for wq/cq polling
   volatile rmc_wq_t* wq;
   volatile rmc_cq_t* cq;
+  char* local_buffer;
   
   while(rmc_active) {
       for(int qp_num = 0; qp_num < num_qps; qp_num++) {
           wq = wqs[qp_num];
           cq = cqs[qp_num];
+          local_buffer = local_buffers[qp_num];
           uint8_t* local_wq_tail = &(local_WQ_tails[qp_num]);
           uint8_t* local_cq_head = &(local_CQ_heads[qp_num]);
           uint8_t* local_wq_SR = &(local_WQ_SRs[qp_num]);

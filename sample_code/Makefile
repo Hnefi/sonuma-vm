@@ -35,12 +35,13 @@ CC    = g++
 CFLAGS	+= -I$(LIBSONUMA_PATH)
 LDFLAGS	= -L$(LIBSONUMA_PATH) -lsonuma -lrt -Wl,-rpath,$(LIBSONUMA_PATH)
 
-TARGET  = bench_sync
-
-SOURCES = \
-	./bench_sync.c
-
+TARGETS  = bench_sync bench_async bench_server multi_qp_read
+SOURCES = bench_sync.c bench_server.c bench_async.c multi_qp_read.c
 OBJECTS = $(SOURCES:.c=.o)
+
+TARGETSYNC = bench_sync
+SOURCESSYNC = bench_sync.c
+OBJECTSSYNC = $(SOURCESSYNC:.c=.o)
 
 TARGET1  = bench_server
 
@@ -56,20 +57,33 @@ SOURCES2 = \
 
 OBJECTS2 = $(SOURCES2:.c=.o)
 
-bench_sync: $(TARGET) $(TARGET1) $(TARGET2)
+TARGET3 = multi_qp_read
 
-$(TARGET): $(OBJECTS)
-	$(CC) $(CFLAGS) -o $(TARGET) $(OBJECTS) $(LDFLAGS) 
-	cp ./bench_sync ../bin/
-#rread_server: $(TARGET1)
+SOURCES3 = \
+	./multi_qp_read.c
+
+OBJECTS3 = $(SOURCES3:.c=.o)
+
+default: $(TARGETS)
+
+%.o : %.c
+	$(CC) $(CFLAGS) -c $^ -o $@ 
+
+$(TARGETSYNC): $(OBJECTSSYNC)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) 
+	cp ./$@ ../bin/
 
 $(TARGET1): $(OBJECTS1)
 	$(CC) $(CFLAGS) -o $(TARGET1) $(OBJECTS1) $(LDFLAGS) 
-	cp ./bench_server ../bin/
+	cp ./$@ ../bin/
 
 $(TARGET2): $(OBJECTS2)
 	$(CC) $(CFLAGS) -o $(TARGET2) $(OBJECTS2) $(LDFLAGS) 
-	cp ./bench_async ../bin/
+	cp ./$@ ../bin/
+
+$(TARGET3): $(OBJECTS3)
+	$(CC) $(CFLAGS) -o $(TARGET3) $(OBJECTS3) $(LDFLAGS) 
+	cp ./$@ ../bin/
 
 clean:
-	-${RM} ${TARGET} ${TARGET1} ${TARGET2} ${OBJECTS} ${OBJECTS1} ${OBJECTS2} $(SRCS:.c=.o)
+	-${RM} ${TARGETS} ${OBJECTS} $(SRCS:.c=.o)
