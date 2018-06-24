@@ -539,7 +539,7 @@ int main(int argc, char **argv)
   wqs = (volatile rmc_wq_t**) calloc(num_qps,sizeof(rmc_wq_t*));
   cqs = (volatile rmc_cq_t**) calloc(num_qps,sizeof(rmc_cq_t*));
   local_buffers = (char**) calloc(num_qps,sizeof(char*));
-  
+
   //allocate a queue pair
   // FIXME: create array of WQs to expose after SRQ is done
   for(int i = 0; i < num_qps; i++) {
@@ -547,6 +547,12 @@ int main(int argc, char **argv)
       alloc_cq((rmc_cq_t **)&cqs[i],i);
       //allocate local buffer
       local_buf_alloc(&local_buffers[i],i);
+  }
+
+  // rpc recv. buffers
+  void* recv_bufs[node_cnt];
+  for(int i = 0; i < node_cnt; i++) {
+      recv_bufs[i] = malloc(MAX_RPC_BYTES);
   }
 
   //create the global address space
@@ -585,7 +591,11 @@ int main(int argc, char **argv)
   char* local_buffer;
   
   while(rmc_active) {
-      for(int qp_num = 0; qp_num < num_qps; qp_num++) {
+      /* New architecture:
+       * - Do one round of QP polling and process all entries.
+       * - Then use poll() to look at all sockets for incoming rmc-rmc transfers
+       */
+      for(int qp_num = 0; qp_num < num_qps; qp_num++) { // QP polling round
           wq = wqs[qp_num];
           cq = cqs[qp_num];
           local_buffer = local_buffers[qp_num];
@@ -602,7 +612,8 @@ int main(int argc, char **argv)
               clock_gettime(CLOCK_MONOTONIC, &start_time);
 #endif
 
-              /*DLog("[main] reading remote memory, offset = %#x\n",
+              /* Msutherl - replaced with stringify_(... )
+               * DLog("[main] reading remote memory, offset = %#x\n",
                       wq->q[*local_wq_tail].offset);
               DLog("[main] buffer address %#x\n",
                       wq->q[*local_wq_tail].buf_addr);
@@ -683,6 +694,18 @@ int main(int argc, char **argv)
 #endif
           } // end process all entries in this WQ
       }// end loop over qps
+
+      // Msutherl: check all sockets (sinfos) for outstanding events
+      for(i = 0; i < node_cnt; i++) {
+          void* rbuf = recv_bufs[i];
+          int nrecvd = recv(sinfo[i].fd, (char *)rbuf, sizeof(int), MSG_DONTWAIT);
+          if( nrecvd < 0 ) {
+              // FIXME
+              perror("[rmc_poll] got error:\n");
+          } else if(nrecvd > 0) {
+              printf("[rmc_poll] got something non-zero\n");
+          }
+      }
   } // end active rmc loop
   
   soft_rmc_ctx_destroy();
@@ -698,6 +721,9 @@ int main(int argc, char **argv)
   free(local_CQ_SRs);
   free(compl_idx);
   free(sinfo);
+  for(int i = 0; i < node_cnt; i++) {
+      free(recv_bufs[i]);
+  }
   return 0;
 }
 

@@ -69,6 +69,8 @@
 #define PUTREF 3
 #define MR_ALLOC 4
 
+#define MAX_RPC_BYTES 4096
+
 #define BILLION 1000000000
 
 #ifndef DEBUG_RMC
