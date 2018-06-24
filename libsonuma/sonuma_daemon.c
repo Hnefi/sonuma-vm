@@ -153,20 +153,3 @@ int kal_reg_ctx(int fd, uint8_t **ctx_ptr, uint32_t num_pages)
   
   return 0;
 }
-
-// Pure C implementation to return str rep. of WQ entry
-// FIXME: assumes buffer has enough space (please buffer-overflow attack this!)
-int stringify_wq_entry(wq_entry_t* entry,char* buf)
-{
-    return sprintf(buf,
-            "{ Operation = %c,"
-            " SR = %u,"
-            " Valid = %u,"
-            " LBuf_Addr = %lx,"
-            " LBuf_Offset = %lx,"
-            " Node ID = %d,"
-            " CTlx Offset = %lx,"
-            " Read Length = %lx }\n"
-            , entry->op, entry->SR, entry->valid, entry->buf_addr, entry->buf_offset,
-            entry->nid, entry->offset, entry->length);
-}

@@ -316,7 +316,7 @@ int ctx_map(char **mem, unsigned page_cnt)
 
 #ifdef DEBUG_RMC
           //for testing purposes
-          for(j=0; j<(dom_region_size)/sizeof(unsigned long); j++)
+          for(int j=0; j<(dom_region_size)/sizeof(unsigned long); j++)
               printf("%lu\n", *((unsigned long *)ctx[i]+j));
 #endif
       }
@@ -613,11 +613,11 @@ int main(int argc, char **argv)
 #ifdef DEBUG_RMC // used ifdef here to avoid stringify every single time
               // (even in perf-mode)
               char wq_entry_buf[180];
-              int stringify_return = stringify_wq_entry(curr,wq_entry_buf);
+              int stringify_return = stringify_wq_entry((wq_entry_t*)curr,wq_entry_buf);
               if( stringify_return < 0 ) {
                   DLog("COULD NOT STRINGIFY CURR!!!!\n");
               } else {
-                DLog(wq_entry_buf);
+                DLog("%s",wq_entry_buf);
               }
 #endif
 
@@ -667,7 +667,7 @@ int main(int argc, char **argv)
               printf("[main] notification latency: %u ns\n", end_time_ns - start_time_ns);
 #endif
 
-#ifdef DEBUG_RMC
+#ifdef DEBUG_PERF_RMC
               stimes.insert(stimes.begin(), end_time_ns - start_time_ns);
 
               if(stimes.size() == 100) {

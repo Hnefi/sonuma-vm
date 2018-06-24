@@ -74,7 +74,7 @@
 #ifndef DEBUG_RMC
 #define DLog(M, ...)
 #else
-#define DLog(M, ...) fprintf(stdout, "DEBUG %s:%d: " M "\n", __FILE__, __LINE__, ##__VA_ARGS__)
+#define DLog(M, ...) fprintf(stdout, "DEBUG %s:%ld: " M "\n", __FILE__, __LINE__, ##__VA_ARGS__)
 #endif
 
 typedef struct server_info {

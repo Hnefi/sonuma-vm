@@ -97,16 +97,17 @@ int main(int argc, char **argv)
   }
 
   for(int i = qp_start; i <= qp_end; i++) {
-      //register local buffer
+      //register local buffers
+      lbuff[i] = NULL;
       if(kal_reg_lbuff(fd, &(lbuff[i]), buf_size/PAGE_SIZE,i) < 0) {
-        printf("Failed to allocate local buffer\n");
+        printf("Failed to allocate local buffer number %i\n",i);
         return -1;
       } else {
         fprintf(stdout, "Local buffer was mapped to address %p, number of pages is %ld\n",
             lbuff[i], buf_size/PAGE_SIZE);
       }
       //register WQ
-      if(kal_reg_wq(fd, &(wqs[i]),0) < 0) {
+      if(kal_reg_wq(fd, &(wqs[i]),i) < 0) {
         printf("Failed to register WQ id: %d\n",i);
         return -1;
       } else {
@@ -114,7 +115,7 @@ int main(int argc, char **argv)
       }
 
       //register CQ
-      if(kal_reg_cq(fd, &(cqs[i]),0) < 0) {
+      if(kal_reg_cq(fd, &(cqs[i]),i) < 0) {
         printf("Failed to register CQ id: %d\n",i);
       } else {
         fprintf(stdout, "CQ %d was registered.\n",i);

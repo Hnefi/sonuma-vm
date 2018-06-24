@@ -68,9 +68,6 @@ typedef void (async_handler)(uint8_t tid, wq_entry_t *head, void *owner);
 extern "C" {
 #endif
 
-// debug entry for printing a wq entry
-int stringify_wq_entry(wq_entry_t* refPrintMe, char* buf);
-
 /**
  * This func opens connection with kernel driver (KAL).
  */
