@@ -596,21 +596,31 @@ int main(int argc, char **argv)
           uint8_t* local_cq_SR = &(local_CQ_SRs[qp_num]);
           while ( wq->connected == true && // poll only connected WQs;
                   (wq->q[*local_wq_tail].SR == *local_wq_SR) ) {
+
+              DLog("[main] : Processing WQ entry [%d] (local_wq_tail) from QP number %d\n",*local_wq_tail,qp_num);
+
 #ifdef DEBUG_PERF_RMC
               clock_gettime(CLOCK_MONOTONIC, &start_time);
 #endif
 
-#ifdef DEBUG_RMC      
-              printf("[main] reading remote memory, offset = %lu\n",
+              DLog("[main] reading remote memory, offset = %lu\n",
                       wq->q[*local_wq_tail].offset);
-
-              printf("[main] buffer address %lu\n",
+              DLog("[main] buffer address %lu\n",
                       wq->q[*local_wq_tail].buf_addr);
+              DLog("[main] nid = %d; offset = %d, len = %d\n", wq->q[*local_wq_tail].nid, wq->q[*local_wq_tail].offset, wq->q[*local_wq_tail].length);
 
-              printf("[main] nid = %d; offset = %d, len = %d\n", wq->q[*local_wq_tail].nid,
-                      wq->q[*local_wq_tail].offset, wq->q[*local_wq_tail].length);
-#endif
               curr = &(wq->q[*local_wq_tail]);
+#ifdef DEBUG_RMC // used ifdef here to avoid stringify every single time
+              // (even in perf-mode)
+              char wq_entry_buf[180];
+              int stringify_return = stringify_wq_entry(curr,wq_entry_buf);
+              if( stringify_return < 0 ) {
+                  DLog("COULD NOT STRINGIFY CURR!!!!\n");
+              } else {
+                DLog(wq_entry_buf);
+              }
+#endif
+
               if(curr->op == 'r') {
                   memcpy((uint8_t *)(local_buffer + curr->buf_offset),
                           ctx[curr->nid] + curr->offset,

@@ -85,4 +85,5 @@ typedef struct qp_info {
   int this_nid;
 } qp_info_t;
 
+
 #endif /* H_RMC_DEFINES */

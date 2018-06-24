@@ -82,7 +82,7 @@ int main(int argc, char **argv)
   op_cnt = (int)ITERS;
   
   //local buffer
-  if(kal_reg_lbuff(fd, &lbuff, buf_size/PAGE_SIZE) < 0) {
+  if(kal_reg_lbuff(fd, &lbuff, buf_size/PAGE_SIZE,qp_id) < 0) {
     printf("Failed to allocate local buffer\n");
     return -1;
   } else {
