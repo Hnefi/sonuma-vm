@@ -565,7 +565,6 @@ int main(int argc, char **argv)
   
   uint8_t* compl_idx = (uint8_t*)calloc(num_qps,sizeof(uint8_t));
   
-  //volatile wq_entry_t** curr_wq_entry = (volatile wq_entry_t**) calloc(num_qps,sizeof(wq_entry_t*));
   volatile wq_entry_t* curr;
   for(int ii = 0; ii < num_qps; ii++) { // init per-qp structures
       local_WQ_tails[ii] = 0;
@@ -603,11 +602,12 @@ int main(int argc, char **argv)
               clock_gettime(CLOCK_MONOTONIC, &start_time);
 #endif
 
-              DLog("[main] reading remote memory, offset = %lu\n",
+              /*DLog("[main] reading remote memory, offset = %#x\n",
                       wq->q[*local_wq_tail].offset);
-              DLog("[main] buffer address %lu\n",
+              DLog("[main] buffer address %#x\n",
                       wq->q[*local_wq_tail].buf_addr);
-              DLog("[main] nid = %d; offset = %d, len = %d\n", wq->q[*local_wq_tail].nid, wq->q[*local_wq_tail].offset, wq->q[*local_wq_tail].length);
+              DLog("[main] nid = %d; offset = %#x, len = %d\n", wq->q[*local_wq_tail].nid, wq->q[*local_wq_tail].offset, wq->q[*local_wq_tail].length);
+              */
 
               curr = &(wq->q[*local_wq_tail]);
 #ifdef DEBUG_RMC // used ifdef here to avoid stringify every single time
@@ -619,6 +619,7 @@ int main(int argc, char **argv)
               } else {
                 DLog("%s",wq_entry_buf);
               }
+              DLog("Global ctx address: %p\n",ctx[curr->nid] + curr->offset);
 #endif
 
               if(curr->op == 'r') {

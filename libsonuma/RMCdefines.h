@@ -95,11 +95,11 @@ int stringify_wq_entry(wq_entry_t* entry,char* buf)
             "{ Operation = %c,"
             " SR = %u,"
             " Valid = %u,"
-            " LBuf_Addr = %lx,"
-            " LBuf_Offset = %lx,"
+            " LBuf_Addr = %#lx,"
+            " LBuf_Offset = %#lx,"
             " Node ID = %d,"
-            " CTlx Offset = %lx,"
-            " Read Length = %lx }\n"
+            " CTlx Offset = %#lx,"
+            " Read Length = %d }\n"
             , entry->op, entry->SR, entry->valid, entry->buf_addr, entry->buf_offset,
             entry->nid, entry->offset, entry->length);
 }
