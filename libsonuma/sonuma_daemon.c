@@ -95,15 +95,13 @@ int kal_reg_cq(int fd, rmc_cq_t **cq_ptr, int cq_id)
   return 0;
 }
 
-int kal_reg_lbuff(int fd, uint8_t **buff_ptr, uint32_t num_pages,int lb_id)
+int kal_reg_lbuff(int fd, uint8_t **buff_ptr, const char* lb_name, uint32_t num_pages)
 {
   int shmid;
   FILE *f;
   
   if(*buff_ptr == NULL) {
-      char fmt[25];
-      sprintf(fmt,"local_buf_ref_%d.txt",lb_id);
-      f = fopen(fmt, "r");
+      f = fopen(lb_name, "r");
       fscanf(f, "%d", &shmid);
       printf("[kal_reg_lbuff] ID for the local buffer is %d\n", shmid);
 
@@ -113,14 +111,13 @@ int kal_reg_lbuff(int fd, uint8_t **buff_ptr, uint32_t num_pages,int lb_id)
       return -1;
     }
     
-    memset(*buff_ptr, 0, 4096);
+    memset(*buff_ptr, 0, num_pages*4096);
   } else {
     printf("[kal_ref_lbuff] local buffer has been allocated, return\n");
     return -1;
   }
 
   fclose(f);
-  
   return 0;
 }
 

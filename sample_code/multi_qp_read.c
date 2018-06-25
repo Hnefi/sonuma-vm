@@ -98,8 +98,10 @@ int main(int argc, char **argv)
 
   for(int i = qp_start; i <= qp_end; i++) {
       //register local buffers
+      char fmt[25];
+      sprintf(fmt,"local_buf_ref_%d.txt",i);
       lbuff[i] = NULL;
-      if(kal_reg_lbuff(fd, &(lbuff[i]), buf_size/PAGE_SIZE,i) < 0) {
+      if(kal_reg_lbuff(fd, &(lbuff[i]), fmt, buf_size/PAGE_SIZE) < 0) {
         printf("Failed to allocate local buffer number %i\n",i);
         return -1;
       } else {

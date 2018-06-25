@@ -58,7 +58,7 @@ int main(int argc, char **argv)
   int num_iter = (int)ITERS;
 
   if (argc != 4) {
-    fprintf(stdout,"Usage: ./bench_sync <target_nid> <op_type> <qp_id>\n"); 
+    fprintf(stdout,"Usage: ./bench_async <target_nid> <op_type> <qp_id>\n"); 
     return 1;
   }
     
@@ -81,8 +81,10 @@ int main(int argc, char **argv)
   
   op_cnt = (int)ITERS;
   
+  char fmt[25];
+  sprintf(fmt,"local_buf_ref_%d.txt",qp_id);
   //local buffer
-  if(kal_reg_lbuff(fd, &lbuff, buf_size/PAGE_SIZE,qp_id) < 0) {
+  if(kal_reg_lbuff(fd, &lbuff, fmt,buf_size/PAGE_SIZE) < 0) {
     printf("Failed to allocate local buffer\n");
     return -1;
   } else {

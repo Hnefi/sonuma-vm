@@ -79,8 +79,10 @@ int main(int argc, char **argv)
     return -1;
   }
 
+  char fmt[25];
+  sprintf(fmt,"local_buf_ref_%d.txt",0);
   //register local buffer
-  if(kal_reg_lbuff(fd, &lbuff, buf_size/PAGE_SIZE,0) < 0) {
+  if(kal_reg_lbuff(fd, &lbuff, fmt,buf_size/PAGE_SIZE) < 0) {
     printf("Failed to allocate local buffer\n");
     return -1;
   } else {

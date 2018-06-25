@@ -92,7 +92,8 @@ int kal_reg_cq(int fd, rmc_cq_t **cq_ptr, int cq_id);
  * Warning: the func pins the memory to avoid swapping to
  *          the disk.
  */
-int kal_reg_lbuff(int fd, uint8_t **buff_ptr, uint32_t num_pages,int lb_id);
+//int kal_reg_lbuff(int fd, uint8_t **buff_ptr, uint32_t num_pages,int lb_id);
+int kal_reg_lbuff(int fd, uint8_t **buff_ptr, const char* lb_name, uint32_t num_pages);
 
 /**
  * This func registers context buffer with KAL.
