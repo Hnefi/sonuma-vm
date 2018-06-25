@@ -59,14 +59,15 @@ int main(int argc, char **argv)
 
   int num_iter = (int)ITERS;
 
-  if (argc != 4) {
-    fprintf(stdout,"Usage: ./rpc <target_nid> <local_qp_id> <rpc_size> \n"); 
+  if (argc != 5) {
+    fprintf(stdout,"Usage: ./rpc <target_nid> <this_nid> <local_qp_id> <rpc_size> \n"); 
     return 1;
   }
     
-  int snid = atoi(argv[1]);
-  char op = *argv[2];
+  int target_nid = atoi(argv[1]);
+  int snid = atoi(argv[2]);
   int qp_id = atoi(argv[3]);
+  int rpc_size = atoi(argv[4]);
   uint64_t ctx_size = PAGE_SIZE * PAGE_SIZE;
   uint64_t buf_size = PAGE_SIZE;
 
@@ -116,8 +117,7 @@ int main(int argc, char **argv)
     fprintf(stdout, "CQ was registered.\n");
   }
   
-  fprintf(stdout,"Init done! Will execute %d WQ operations - SYNC! (snid = %d)\n",
-	  num_iter, snid);
+  fprintf(stdout,"Init done! Will execute %d WQ operations - SYNC! (target_node = %d, snid = %d)\n",num_iter, target_nid,snid);
 
   unsigned long long start, end;
   
@@ -136,7 +136,7 @@ int main(int argc, char **argv)
     start = rdtsc();
 
     //rmc_rread_sync(wq, cq, lbuff, lbuff_slot, snid, CTX_0, ctx_offset, OBJ_READ_SIZE);
-    rmc_send(wq, cq, CTX_0, (char*)lbuff, lbuff_slot, (char*)lbuff, OBJ_READ_SIZE,snid); // FIXME: local buffer and data needed? why not 1?
+    rmc_send(wq, cq, CTX_0, (char*)lbuff, lbuff_slot, (char*)lbuff, OBJ_READ_SIZE,target_nid); // FIXME: local buffer and data needed? why not 1?
 
     end = rdtsc();
     
@@ -145,7 +145,9 @@ int main(int argc, char **argv)
       printf("read this number: %u\n", ((uint32_t*)lbuff)[lbuff_slot/sizeof(uint32_t)]);
     }
     */
+#ifdef TIME_OPS
     printf("time to execute this op: %lf ns\n", ((double)end - start)/CPU_FREQ);
+#endif
   }
  
   return 0;
