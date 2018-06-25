@@ -102,19 +102,13 @@ int kal_reg_lbuff(int fd, uint8_t **buff_ptr, const char* lb_name, uint32_t num_
  */
 int kal_reg_ctx(int fd, uint8_t **ctx_ptr, uint32_t num_pages);
 
-
 /**
  * This func implements the receive functionality for solicited communication
  */
-int rmc_send(rmc_wq_t *wq, rmc_cq_t *cq, char *ctx, char *lbuff_ptr,
-	     int lbuff_offset, char *data, int size, int snid);
+/* Msutherl: beta-implementations for send/recv. */
+void rmc_recv(rmc_wq_t *wq, rmc_cq_t *cq, char ctx_id, char *lbuff_ptr,int lbuff_offset, char *data, int size, int snid);
 
-/**
- * This func implements the receive functionality for solicited communication
- */
-int rmc_recv(rmc_wq_t *wq, rmc_cq_t *cq, char *ctx, char *lbuff_ptr,
-	     int lbuff_offset, int snid, char *data, int size);
-
+void rmc_send(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr, int lbuff_offset, char *data, int size, int snid);
 #ifdef __cplusplus
 }
 #endif

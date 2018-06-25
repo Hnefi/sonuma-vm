@@ -562,7 +562,7 @@ int main(int argc, char **argv)
   size_t n_srq_pages = (srq_size / PAGE_SIZE) + 1;
   local_buf_alloc(&srq_buf,"srq.txt",n_srq_pages);
 
-  //create the global address space
+ //create the global address space
   if(ctx_alloc_grant_map(&local_mem_region, MAX_REGION_PAGES) == -1) {
     printf("[main] context not allocated\n");
     return -1;
@@ -682,7 +682,8 @@ int main(int argc, char **argv)
 #endif
 
               //notify the application
-              if ( curr->op == 'w' || curr->op == 'r' ) {
+              if ( curr->op == 'w' || curr->op == 'r'
+                    || curr->op == 's' ) { // FIXME
                   *compl_idx = *local_wq_tail;
                   *local_wq_tail += 1;
 
@@ -735,6 +736,7 @@ int main(int argc, char **argv)
                   // FIXME: perror("[rmc_poll] got error:\n");
               } else if(nrecvd > 0) {
                   printf("[rmc_poll] got something non-zero, nbytes = %d\n",nrecvd);
+                  printf("Passed buf (string interpret): %s\n",rbuf);
               } else ;
           }
       }

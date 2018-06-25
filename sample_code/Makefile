@@ -33,15 +33,19 @@ SHELL = /bin/sh
 CC    = g++
 
 CFLAGS	+= -I$(LIBSONUMA_PATH)
-LDFLAGS	= -L$(LIBSONUMA_PATH) -lsonuma -lrt -Wl,-rpath,$(LIBSONUMA_PATH)
+LDFLAGS	= -L$(LIBSONUMA_PATH) -Wl,-rpath,$(LIBSONUMA_PATH) -lsonuma -lrt
 
-TARGETS  = bench_sync bench_async bench_server multi_qp_read
+TARGETS  = bench_sync bench_async bench_server multi_qp_read rpc_sync
 SOURCES = bench_sync.c bench_server.c bench_async.c multi_qp_read.c
 OBJECTS = $(SOURCES:.c=.o)
 
 TARGETSYNC = bench_sync
 SOURCESSYNC = bench_sync.c
 OBJECTSSYNC = $(SOURCESSYNC:.c=.o)
+
+RPC_TARG = rpc_sync
+RPC_SOURCES = rpc_sync.c
+RPC_OBJS = $(RPC_SOURCES:.c=.o)
 
 TARGET1  = bench_server
 
@@ -83,6 +87,10 @@ $(TARGET2): $(OBJECTS2)
 
 $(TARGET3): $(OBJECTS3)
 	$(CC) $(CFLAGS) -o $(TARGET3) $(OBJECTS3) $(LDFLAGS) 
+	cp ./$@ ../bin/
+
+$(RPC_TARG): $(RPC_OBJS)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) 
 	cp ./$@ ../bin/
 
 clean:

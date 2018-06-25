@@ -150,3 +150,53 @@ int kal_reg_ctx(int fd, uint8_t **ctx_ptr, uint32_t num_pages)
   
   return 0;
 }
+
+/* Msutherl: beta-implementations for send/recv. */
+void rmc_recv(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr, int lbuff_offset, char *data, int size, int snid) { }
+
+void rmc_send(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr, int lbuff_offset, char *data, int size, int snid)
+{
+    // create WQ entry, just to see if remote RMC gets it
+    uint8_t wq_head = wq->head;
+    uint8_t cq_tail = cq->tail;
+
+    DLogPerf("[rmc_rread_sync] rmc_send called.");
+
+    while (wq->q[wq_head].valid) {} //wait for WQ head to be ready
+    
+    wq->q[wq_head].buf_addr = (uint64_t)lbuff_ptr;
+    wq->q[wq_head].buf_offset = lbuff_offset;
+    wq->q[wq_head].cid = ctx_id;
+    //wq->q[wq_head].offset = ctx_offset;
+    if(size < 64) wq->q[wq_head].length = 64; //at least 64B
+    else wq->q[wq_head].length = size;
+    wq->q[wq_head].op = 's';
+    wq->q[wq_head].nid = snid;
+
+    wq->q[wq_head].valid = 1;
+    wq->q[wq_head].SR = wq->SR;
+
+    wq->head =  wq->head + 1;
+
+    //check if WQ reached its end
+    if (wq->head >= MAX_NUM_WQ) {
+        wq->head = 0;
+        wq->SR ^= 1;
+    }
+
+    //wait for a completion of the entry
+    while(cq->q[cq_tail].SR != cq->SR) {
+    }
+
+    //mark the entry as invalid, i.e. completed
+    wq->q[cq->q[cq_tail].tid].valid = 0;
+
+    cq->tail = cq->tail + 1;
+
+    //check if WQ reached its end
+    if (cq->tail >= MAX_NUM_WQ) {
+        cq->tail = 0;
+        cq->SR ^= 1;
+    }
+}
+
