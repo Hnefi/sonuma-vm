@@ -697,13 +697,15 @@ int main(int argc, char **argv)
 
       // Msutherl: check all sockets (sinfos) for outstanding events
       for(i = 0; i < node_cnt; i++) {
-          void* rbuf = recv_bufs[i];
-          int nrecvd = recv(sinfo[i].fd, (char *)rbuf, sizeof(int), MSG_DONTWAIT);
-          if( nrecvd < 0 ) {
-              // FIXME
-              perror("[rmc_poll] got error:\n");
-          } else if(nrecvd > 0) {
-              printf("[rmc_poll] got something non-zero\n");
+          if( i != this_nid ) {
+              void* rbuf = recv_bufs[i];
+              int nrecvd = recv(sinfo[i].fd, (char *)rbuf, sizeof(int), MSG_DONTWAIT);
+              if( nrecvd < 0 ) {
+                  // FIXME
+                  perror("[rmc_poll] got error:\n");
+              } else if(nrecvd > 0) {
+                  printf("[rmc_poll] got something non-zero\n");
+              }
           }
       }
   } // end active rmc loop
