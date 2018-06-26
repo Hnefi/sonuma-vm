@@ -770,7 +770,7 @@ int main(int argc, char **argv)
                   printf("Passed buf (string interpret): %s\n",rbuf);
                   // check whether it's an rpc send, or recv to already sent rpc
                   int offset = nrecvd;
-                  char dmux = *((char*)rbuf + offset);
+                  char dmux = *((char*)rbuf + offset-1);
                   DLog("Printing RPC Buffer after receive.\n");
 #ifdef DEBUG_RMC
                   print_cbuf( (char*)rbuf, nrecvd );
