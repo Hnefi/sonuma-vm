@@ -330,7 +330,7 @@ static inline uint16_t rmc_poll_cq_rpc(rmc_cq_t* cq, rpc_handler* theRPC)
   uint8_t cq_tail = cq->tail;
 
   // wait for entry to arrive in cq
-  while(cq->q[cq_tail].SR != cq->SR) {
+  while(cq->q[cq_tail].SR == cq->SR) {
       // call handler and set nid for sending wq in return
       retme = cq->q[cq_tail].sending_nid;
 
