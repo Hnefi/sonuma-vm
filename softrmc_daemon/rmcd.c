@@ -68,6 +68,13 @@ void* get_srq_ptr() {
     return (void*) srq_buf;
 }
 
+// Msutherl: returns qp number for RMC to terminate RMC to
+uint8_t get_server_qp()
+{
+    //TODO
+    return 0;
+}
+
 int alloc_wq(rmc_wq_t **qp_wq, int wq_id)
 {
   int retcode, i;
@@ -558,7 +565,7 @@ int main(int argc, char **argv)
       local_buf_alloc(&local_buffers[i],fmt,1);
   }
 
-  size_t srq_size = MAX_RPC_BYTES * MIN_RPCBUF_ENTRIES;
+  size_t srq_size = (MAX_RPC_BYTES+1) * MIN_RPCBUF_ENTRIES;
   size_t n_srq_pages = (srq_size / PAGE_SIZE) + 1;
   local_buf_alloc(&srq_buf,"srq.txt",n_srq_pages);
 
@@ -653,19 +660,18 @@ int main(int argc, char **argv)
                               curr->length);	
                       break;
                   case 's':
+                  case 'g':
                       {
                           // send rmc->rmc rpc
                           int receiver = curr->nid;
                           unsigned nbytes = send(sinfo[receiver].fd, (char *)(local_buffer + curr->buf_offset), curr->length, 0); // block to ensure WQ entry is processed
                           if( nbytes < 0 ) {
                               perror("[rmc_rpc] send failed, w. error:");
-                          }
+                          }  
                           break;
                       }
                   case 'a': ;
                       // TODO: model rendezvous method of transfer
-                  case 'g': ;
-                      // TODO: model returning rpc response
                   default:
                       DLog("Un-implemented op. in WQ entry. drop it on the floor.\n");
               } // switch WQ entry types
@@ -681,9 +687,9 @@ int main(int argc, char **argv)
               clock_gettime(CLOCK_MONOTONIC, &start_time);
 #endif
 
-              //notify the application
-              if ( curr->op == 'w' || curr->op == 'r'
-                    || curr->op == 's' ) { // FIXME
+              // notify the application
+              if ( curr->op == 'w' || curr->op == 'r' ) {
+                    //|| curr->op == 's' ) { 
                   *compl_idx = *local_wq_tail;
                   *local_wq_tail += 1;
 
@@ -700,9 +706,25 @@ int main(int argc, char **argv)
                       *local_cq_head = 0;
                       *local_cq_SR ^= 1;
                   }
-              } else {
-                  // TODO: asynchronous completion. mark WQ as processed but no CQ yet
-              }
+              } else if (curr->op == 's') {
+                  // rmc send. mark WQ as processed but no CQ yet
+                  // (that's created on receiving something through rmc->rmc socket)
+                  *local_wq_tail += 1;
+                  if (*local_wq_tail >= MAX_NUM_WQ) {
+                      *local_wq_tail = 0;
+                      *local_wq_SR ^= 1;
+                  }
+              } else if (curr->op == 'g') {
+                  // rmc receive. unmark WQ as valid, to reuse
+                  *local_wq_tail += 1;
+                  if (*local_wq_tail >= MAX_NUM_WQ) {
+                      *local_wq_tail = 0;
+                      *local_wq_SR ^= 1;
+                  }
+                  //mark the entry as invalid, i.e. completed
+                  curr->valid = 0;
+              } else 
+                  DLog("Un-implemented op. in WQ entry. drop it on the floor.\n");
 
 #ifdef DEBUG_PERF_RMC
               clock_gettime(CLOCK_MONOTONIC, &end_time);
@@ -731,13 +753,48 @@ int main(int argc, char **argv)
       for(i = 0; i < node_cnt; i++) {
           if( i != this_nid ) {
               void* rbuf = get_srq_ptr();
-              int nrecvd = recv(sinfo[i].fd, (char *)rbuf, MAX_RPC_BYTES, MSG_DONTWAIT);
-              if( nrecvd < 0 ) {
-                  // FIXME: perror("[rmc_poll] got error:\n");
-              } else if(nrecvd > 0) {
+              int nrecvd = recv(sinfo[i].fd, (char *)rbuf, MAX_RPC_BYTES+1, MSG_DONTWAIT);
+              if( nrecvd > 0 ) {
                   printf("[rmc_poll] got something non-zero, nbytes = %d\n",nrecvd);
                   printf("Passed buf (string interpret): %s\n",rbuf);
-              } else ;
+                  // check whether it's an rpc send, or recv to already sent rpc
+                  int offset = nrecvd-1;
+                  char dmux = *((char*)rbuf + offset);
+                  switch( dmux ) {
+                      case 's':
+                          {
+                              uint8_t qp_to_terminate = get_server_qp();
+                              // push into the cq.
+                              uint8_t* local_cq_head = &(local_CQ_heads[qp_to_terminate]);
+                              uint8_t* local_cq_SR = &(local_CQ_SRs[qp_to_terminate]);
+                              cq->q[*local_cq_head].rpc_buf = rbuf;
+                              cq->q[*local_cq_head].SR = *local_cq_SR;
+                              cq->q[*local_cq_head].sending_nid = qp_to_terminate;// FIXME: this should be the rpc server's qp
+                              DLog("Received rpc SEND at rmc #%d. Receive-side QP info is:\n"
+                                      "\t{ qp_to_terminate : %d,\n"
+                                      "\t{ local_cq_head : %d,\n", this_nid, qp_to_terminate,local_cq_head);
+                          }
+                      case 'g':
+                          {
+                              uint8_t sending_qp = get_server_qp(); // FIXME: this should come from the socket
+                              uint8_t* local_cq_head = &(local_CQ_heads[sending_qp]);
+                              uint8_t* local_cq_SR = &(local_CQ_SRs[sending_qp]);
+                              cq->q[*local_cq_head].rpc_buf = rbuf;
+                              cq->q[*local_cq_head].SR = *local_cq_SR;
+                              cq->q[*local_cq_head].sending_nid = sending_qp;
+                              DLog("Received rpc RETURN (\'g\') at rmc #%d. Send-side QP info is:\n"
+                                      "\t{ sending_qp : %d,\n"
+                                      "\t{ local_cq_head : %d,\n", this_nid,sending_qp,local_cq_head);
+                              /*
+                              wq = wqs[sending_qp];
+                              uint8_t wq_head = wq->head;
+                              wq[wq_head].valid = 0;
+                              */
+                          }
+                      default:
+                        DLog("Garbage op. in stream recv. from socket.... drop it on the floor.\n");
+                  }
+              } else ; // perror("[rmc_poll] got error:\n");
           }
       }
   } // end active rmc loop

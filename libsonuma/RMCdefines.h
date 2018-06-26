@@ -64,6 +64,8 @@ typedef struct wq_entry {
 typedef struct cq_entry { 
   volatile uint8_t SR;
   volatile uint8_t tid;
+  void* rpc_buf;
+  uint16_t sending_nid;
 } cq_entry_t;
 
 typedef struct rmc_wq {

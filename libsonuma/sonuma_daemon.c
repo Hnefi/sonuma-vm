@@ -152,7 +152,38 @@ int kal_reg_ctx(int fd, uint8_t **ctx_ptr, uint32_t num_pages)
 }
 
 /* Msutherl: beta-implementations for send/recv. */
-void rmc_recv(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr, int lbuff_offset, char *data, int size, int snid) { }
+void rmc_recv(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr, int lbuff_offset, char *data, int size, int snid) 
+{
+    // create WQ entry, response for arguments given to CQ
+    uint8_t wq_head = wq->head;
+
+    DLogPerf("[rmc_rread_sync] rmc_recv called.");
+
+    while (wq->q[wq_head].valid) {} //wait for WQ head to be ready
+    
+    wq->q[wq_head].buf_addr = (uint64_t)lbuff_ptr;
+    wq->q[wq_head].buf_offset = lbuff_offset;
+    wq->q[wq_head].cid = ctx_id;
+    size += 1; // 1 byte more to pass the character 's'
+    *(lbuff_ptr + lbuff_offset + 1) = 's';
+    if(size < 64) wq->q[wq_head].length = 64; //at least 64B
+    else wq->q[wq_head].length = size;
+    wq->q[wq_head].op = 'g';
+    wq->q[wq_head].nid = snid;
+
+    wq->q[wq_head].valid = 1;
+    wq->q[wq_head].SR = wq->SR;
+
+    wq->head =  wq->head + 1;
+
+    //check if WQ reached its end
+    if (wq->head >= MAX_NUM_WQ) {
+        wq->head = 0;
+        wq->SR ^= 1;
+    }
+    // Msutherl: does not spin for CQ
+    // TODO: anything else here??
+}
 
 void rmc_send(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr, int lbuff_offset, char *data, int size, int snid)
 {
@@ -168,6 +199,8 @@ void rmc_send(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr, int lbuff
     wq->q[wq_head].buf_offset = lbuff_offset;
     wq->q[wq_head].cid = ctx_id;
     //wq->q[wq_head].offset = ctx_offset;
+    size += 1; // 1 byte more to pass the character 's'
+    *(lbuff_ptr + lbuff_offset + 1) = 's';
     if(size < 64) wq->q[wq_head].length = 64; //at least 64B
     else wq->q[wq_head].length = size;
     wq->q[wq_head].op = 's';
@@ -189,7 +222,7 @@ void rmc_send(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr, int lbuff
     }
 
     //mark the entry as invalid, i.e. completed
-    wq->q[cq->q[cq_tail].tid].valid = 0;
+    wq->q[cq->q[cq_tail].sending_nid].valid = 0;
 
     cq->tail = cq->tail + 1;
 

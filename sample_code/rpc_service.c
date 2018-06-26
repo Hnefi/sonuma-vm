@@ -31,7 +31,7 @@
 
 /*
  * Msutherl:
- *  RPC test using rmc_send 
+ *  RPC service that polls CQs, reads buffers, and sends responses.
  */
 
 #include <vector>
@@ -45,11 +45,18 @@
 #define CTX_0 0
 #define CPU_FREQ 2.4
 
+static uint64_t op_cnt;
+
 static __inline__ unsigned long long rdtsc(void)
 {
   unsigned long hi, lo;
   __asm__ __volatile__ ("rdtsc" : "=a"(lo), "=d"(hi));
   return ((unsigned long long)lo) | (((unsigned long long)hi)<<32) ;
+}
+
+void rpc_handler(uint16_t tid, cq_entry_t *head, void *owner) {
+  printf("[rpc_handler]: Application got RPC from nid [%d] w. buf. string: %s\n",tid,(head->rpc_buf));
+  op_cnt--;
 }
 
 int main(int argc, char **argv)
@@ -58,16 +65,15 @@ int main(int argc, char **argv)
   rmc_cq_t *cq;
 
   int num_iter = (int)ITERS;
+  op_cnt = num_iter;
 
-  if (argc != 5) {
-    fprintf(stdout,"Usage: ./rpc <target_nid> <this_nid> <local_qp_id> <rpc_size> \n"); 
+  if (argc != 3) {
+    fprintf(stdout,"Usage: ./rpc_service <this_nid> <local_qp_id>\n"); 
     return 1;
   }
     
-  int target_nid = atoi(argv[1]);
-  int snid = atoi(argv[2]);
-  int qp_id = atoi(argv[3]);
-  int rpc_size = atoi(argv[4]);
+  int this_nid = atoi(argv[1]);
+  int qp_id = atoi(argv[2]);
   uint64_t ctx_size = PAGE_SIZE * PAGE_SIZE;
   uint64_t buf_size = PAGE_SIZE;
 
@@ -117,37 +123,19 @@ int main(int argc, char **argv)
     fprintf(stdout, "CQ was registered.\n");
   }
   
-  fprintf(stdout,"Init done! Will execute %d WQ operations - SYNC! (target_node = %d, snid = %d)\n",num_iter, target_nid,snid);
+  fprintf(stdout,"Init done! Will receive %d CQ RPCs!  (this_nid = %d)\n",num_iter, this_nid);
 
   unsigned long long start, end;
   
   lbuff_slot = 0;
-  const char tmp[11] = "marks rpc\0";
-  
-  for(size_t i = 0; i < num_iter; i++) {
-    ctx_offset = (i * PAGE_SIZE) % ctx_size;
-    lbuff_slot = (i * sizeof(uint32_t)) % (PAGE_SIZE - OBJ_READ_SIZE);
+  while( op_cnt > 0 ) {
+    //lbuff_slot = (i * sizeof(uint32_t)) % (PAGE_SIZE - OBJ_READ_SIZE);
 
-    // write a string into lbuff
-    for(int o = 0; o < 12; o++) {
-        *(lbuff + (lbuff_slot+o)) = tmp[o];
-    }
+      uint16_t nid_ret = rmc_poll_cq_rpc(cq, &rpc_handler);
+      // handler decrements --op_cnt
 
-    start = rdtsc();
-
-    //rmc_rread_sync(wq, cq, lbuff, lbuff_slot, snid, CTX_0, ctx_offset, OBJ_READ_SIZE);
-    rmc_send(wq, cq, CTX_0, (char*)lbuff, lbuff_slot, (char*)lbuff, OBJ_READ_SIZE,target_nid); // FIXME: local buffer and data needed? why not 1?
-
-    end = rdtsc();
-    
-    /*
-    if(op == 'r') {
-      printf("read this number: %u\n", ((uint32_t*)lbuff)[lbuff_slot/sizeof(uint32_t)]);
-    }
-    */
-#ifdef TIME_OPS
-    printf("time to execute this op: %lf ns\n", ((double)end - start)/CPU_FREQ);
-#endif
+      // enqueue receive in wq
+      rmc_recv(wq,cq,CTX_0,(char*)lbuff,lbuff_slot,(char*)lbuff,OBJ_READ_SIZE,nid_ret);
   }
  
   return 0;

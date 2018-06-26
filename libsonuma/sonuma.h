@@ -63,6 +63,7 @@
 #endif
 
 typedef void (async_handler)(uint8_t tid, wq_entry_t *head, void *owner);
+typedef void (rpc_handler)(uint16_t sending_nid, cq_entry_t *head, void *owner);
 
 #ifdef __cplusplus
 extern "C" {
@@ -327,6 +328,29 @@ static inline int rmc_drain_cq(rmc_wq_t *wq, rmc_cq_t *cq, async_handler *handle
   }
   
   return 0;
+}
+
+static inline uint16_t rmc_poll_cq_rpc(rmc_cq_t* cq, rpc_handler* theRPC)
+{
+  uint16_t retme;
+  uint8_t cq_tail = cq->tail;
+
+  // wait for entry to arrive in cq
+  while(cq->q[cq_tail].SR != cq->SR) {
+      // call handler and set nid for sending wq in return
+      retme = cq->q[cq_tail].sending_nid;
+
+    cq->tail = cq->tail + 1;
+
+    //check if CQ reached its end
+    if (cq->tail >= MAX_NUM_WQ) {
+        cq->tail = 0;
+        cq->SR ^= 1;
+    }
+    cq_tail = cq->tail;
+    theRPC(retme, &(cq->q[cq_tail]), NULL);
+    return retme;
+  }
 }
 
 #endif /* H_SONUMA */

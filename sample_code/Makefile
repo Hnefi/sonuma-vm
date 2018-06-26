@@ -47,6 +47,10 @@ RPC_TARG = rpc_sync
 RPC_SOURCES = rpc_sync.c
 RPC_OBJS = $(RPC_SOURCES:.c=.o)
 
+SERV_TARG = rpc_service 
+SERV_SOURCES = rpc_service.c
+SERV_OBJS = $(SERV_SOURCES:.c=.o)
+
 TARGET1  = bench_server
 
 SOURCES1 = \
@@ -90,6 +94,10 @@ $(TARGET3): $(OBJECTS3)
 	cp ./$@ ../bin/
 
 $(RPC_TARG): $(RPC_OBJS)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) 
+	cp ./$@ ../bin/
+
+$(SERV_TARG): $(SERV_OBJS)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) 
 	cp ./$@ ../bin/
 
