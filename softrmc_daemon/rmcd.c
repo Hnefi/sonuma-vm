@@ -760,6 +760,7 @@ int main(int argc, char **argv)
                   // check whether it's an rpc send, or recv to already sent rpc
                   int offset = nrecvd-1;
                   char dmux = *((char*)rbuf + offset);
+                  printf("Reading dmux char from offset (%d): %c\n",offset,dmux);
                   switch( dmux ) {
                       case 's':
                           {

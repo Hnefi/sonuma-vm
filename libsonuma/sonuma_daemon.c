@@ -165,8 +165,8 @@ void rmc_send(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr, int lbuff
     wq->q[wq_head].buf_offset = lbuff_offset;
     wq->q[wq_head].cid = ctx_id;
     //wq->q[wq_head].offset = ctx_offset;
+    *(lbuff_ptr + size + 1) = 's';
     size += 1; // 1 byte more to pass the character 's'
-    *(lbuff_ptr + lbuff_offset + 1) = 's';
     if(size < 64) wq->q[wq_head].length = 64; //at least 64B
     else wq->q[wq_head].length = size;
     wq->q[wq_head].op = 's';
