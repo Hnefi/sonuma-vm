@@ -75,6 +75,13 @@ uint8_t get_server_qp()
     return 0;
 }
 
+void print_cbuf(char* buf, size_t len)
+{
+    for(int i = 0; i < len;i++) {
+        printf("Buffer[%d] = %c\n",i,buf[i]);
+    }
+}
+
 int alloc_wq(rmc_wq_t **qp_wq, int wq_id)
 {
   int retcode, i;
@@ -664,6 +671,10 @@ int main(int argc, char **argv)
                       {
                           // send rmc->rmc rpc
                           int receiver = curr->nid;
+                          DLog("Printing RPC Buffer before send.\n");
+#ifdef DEBUG_RMC
+                          print_cbuf( (char*)(local_buffer + curr->buf_offset), curr->length);
+#endif
                           unsigned nbytes = send(sinfo[receiver].fd, (char *)(local_buffer + curr->buf_offset), curr->length, 0); // block to ensure WQ entry is processed
                           if( nbytes < 0 ) {
                               perror("[rmc_rpc] send failed, w. error:");
@@ -759,10 +770,11 @@ int main(int argc, char **argv)
                   printf("Passed buf (string interpret): %s\n",rbuf);
                   // check whether it's an rpc send, or recv to already sent rpc
                   int offset = nrecvd;
-                  for(int char_off = 0; char_off <= offset; char_off++) {
-                      printf("Rpc_buf[%d] = %c\n",char_off,*((char*)rbuf + offset));
-                  }
                   char dmux = *((char*)rbuf + offset);
+                  DLog("Printing RPC Buffer after receive.\n");
+#ifdef DEBUG_RMC
+                  print_cbuf( (char*)rbuf, nrecvd );
+#endif
                   switch( dmux ) {
                       case 's':
                           {
