@@ -32,7 +32,7 @@
 SHELL = /bin/sh
 CC    = g++
 
-CFLAGS       += -fPIC -Wall -Wl,--no-undefined
+CFLAGS       += -fPIC -Wall -Wl,--no-undefined -DDEBUG
 
 #-combine
 LDFLAGS	= -shared -fPIC -lc -lpthread -lrt

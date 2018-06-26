@@ -157,7 +157,7 @@ void rmc_send(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr, int lbuff
     uint8_t wq_head = wq->head;
     uint8_t cq_tail = cq->tail;
 
-    DLogPerf("[rmc_rread_sync] rmc_send called.");
+    DLog("[rmc_rread_sync] rmc_send called.");
 
     while (wq->q[wq_head].valid) {} //wait for WQ head to be ready
     
@@ -200,13 +200,12 @@ void rmc_send(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr, int lbuff
 }
 
 /* Msutherl: beta-implementations for send/recv. */
-//void rmc_recv(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr, int lbuff_offset, char *data, int size, int snid) 
 void rmc_recv(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr,int lbuff_offset, char *data, int size, int snid)
 {
     // create WQ entry, response for arguments given to CQ
     uint8_t wq_head = wq->head;
 
-    DLogPerf("[rmc_rread_sync] rmc_recv called.");
+    DLog("[rmc_recv] rmc_recv called.");
 
     while (wq->q[wq_head].valid) {} //wait for WQ head to be ready
     

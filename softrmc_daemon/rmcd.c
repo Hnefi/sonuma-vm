@@ -155,7 +155,7 @@ int alloc_cq(rmc_cq_t **qp_cq, int cq_id)
   rmc_cq_t *cq = *qp_cq; 
   
   if (cq == NULL) {
-    DLog("[alloc_cq] Work Queue could not be allocated.");
+    DLog("[alloc_cq] Completion Queue could not be allocated.");
     return -1;
   }
   
@@ -164,10 +164,10 @@ int alloc_cq(rmc_cq_t **qp_cq, int cq_id)
     
   retcode = mlock((void *)cq, PAGE_SIZE);
   if(retcode != 0) {
-    DLog("[alloc_cq] WQueue mlock returned %d", retcode);
+    DLog("[alloc_cq] CQueue mlock returned %d", retcode);
     return -1;
   } else {
-    DLog("[alloc_cq] WQ was pinned successfully.");
+    DLog("[alloc_cq] CQ was pinned successfully.");
   }
 
   //setup completion queue
@@ -759,8 +759,10 @@ int main(int argc, char **argv)
                   printf("Passed buf (string interpret): %s\n",rbuf);
                   // check whether it's an rpc send, or recv to already sent rpc
                   int offset = nrecvd;
+                  for(int char_off = 0; char_off <= offset; char_off++) {
+                      printf("Rpc_buf[%d] = %c\n",char_off,*((char*)rbuf + offset));
+                  }
                   char dmux = *((char*)rbuf + offset);
-                  printf("Reading dmux char from offset (%d): %c\n",offset,dmux);
                   switch( dmux ) {
                       case 's':
                           {

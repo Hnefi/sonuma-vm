@@ -330,21 +330,21 @@ static inline uint16_t rmc_poll_cq_rpc(rmc_cq_t* cq, rpc_handler* theRPC)
   uint8_t cq_tail = cq->tail;
 
   // wait for entry to arrive in cq
-  while(cq->q[cq_tail].SR == cq->SR) {
-      // call handler and set nid for sending wq in return
-      retme = cq->q[cq_tail].sending_nid;
+  while(cq->q[cq_tail].SR == cq->SR ) { }
+  DLog("Valid entry in CQ (index %d)! Entry SR = %c, Q. SR = %c\n",cq_tail,cq->q[cq_tail].SR,cq->SR);
+  // call handler and set nid for sending wq in return
+  retme = cq->q[cq_tail].sending_nid;
 
-    cq->tail = cq->tail + 1;
+  cq->tail = cq->tail + 1;
 
-    //check if CQ reached its end
-    if (cq->tail >= MAX_NUM_WQ) {
-        cq->tail = 0;
-        cq->SR ^= 1;
-    }
-    cq_tail = cq->tail;
-    theRPC(retme, &(cq->q[cq_tail]), NULL);
-    return retme;
+  //check if CQ reached its end
+  if (cq->tail >= MAX_NUM_WQ) {
+      cq->tail = 0;
+      cq->SR ^= 1;
   }
+  cq_tail = cq->tail;
+  theRPC(retme, &(cq->q[cq_tail]), NULL);
+  return retme;
 }
 
 #ifdef __cplusplus
