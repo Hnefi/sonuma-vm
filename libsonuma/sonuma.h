@@ -110,7 +110,7 @@ void rmc_send(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr, int lbuff
 
 void print_cbuf(char* buf, size_t len)
 {
-    for(int i = 0; i < len;i++) {
+    for(unsigned i = 0; i < len;i++) {
         printf("Buffer[%d] = %c\n",i,buf[i]);
     }
 }

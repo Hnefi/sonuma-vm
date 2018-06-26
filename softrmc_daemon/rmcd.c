@@ -75,6 +75,12 @@ uint8_t get_server_qp()
     return 0;
 }
 
+void print_cbuf(char* buf, size_t len)
+{
+    for(int i = 0; i < len;i++) {
+        printf("Buffer[%d] = %c\n",i,buf[i]);
+    }
+}
 
 int alloc_wq(rmc_wq_t **qp_wq, int wq_id)
 {
