@@ -36,7 +36,6 @@
 
 #include <vector>
 #include <algorithm>
-
 #include "sonuma.h"
 
 #define ITERS 4096
@@ -54,7 +53,7 @@ static __inline__ unsigned long long rdtsc(void)
   return ((unsigned long long)lo) | (((unsigned long long)hi)<<32) ;
 }
 
-void rpc_handler(uint16_t tid, cq_entry_t *head, void *owner) {
+void handler(uint16_t tid, cq_entry_t *head, void *owner) {
   printf("[rpc_handler]: Application got RPC from nid [%d] w. buf. string: %s\n",tid,(head->rpc_buf));
   op_cnt--;
 }
@@ -131,7 +130,7 @@ int main(int argc, char **argv)
   while( op_cnt > 0 ) {
     //lbuff_slot = (i * sizeof(uint32_t)) % (PAGE_SIZE - OBJ_READ_SIZE);
 
-      uint16_t nid_ret = rmc_poll_cq_rpc(cq, &rpc_handler);
+      uint16_t nid_ret = rmc_poll_cq_rpc(cq, &handler);
       // handler decrements --op_cnt
 
       // enqueue receive in wq

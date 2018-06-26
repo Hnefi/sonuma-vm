@@ -37,6 +37,9 @@ CFLAGS       += -fPIC -Wall
 #-combine
 LDFLAGS	= -shared -fPIC -lc -lpthread -lrt
 
+%.o : %.c
+	$(CC) $(CFLAGS) -c $^ -o $@ 
+
 TARGET  = libsonuma.so
 
 SOURCES = \

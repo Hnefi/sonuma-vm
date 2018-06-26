@@ -137,6 +137,7 @@ int main(int argc, char **argv)
 
     //rmc_rread_sync(wq, cq, lbuff, lbuff_slot, snid, CTX_0, ctx_offset, OBJ_READ_SIZE);
     rmc_send(wq, cq, CTX_0, (char*)lbuff, lbuff_slot, (char*)lbuff, OBJ_READ_SIZE,target_nid); // FIXME: local buffer and data needed? why not 1?
+      rmc_recv(wq,cq,CTX_0,(char*)lbuff,lbuff_slot,(char*)lbuff,OBJ_READ_SIZE,target_nid);
 
     end = rdtsc();
     
