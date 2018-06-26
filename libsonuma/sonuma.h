@@ -108,6 +108,13 @@ int kal_reg_ctx(int fd, uint8_t **ctx_ptr, uint32_t num_pages);
 void rmc_recv(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr,int lbuff_offset, char *data, int size, int snid);
 void rmc_send(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr, int lbuff_offset, char *data, int size, int snid);
 
+void print_cbuf(char* buf, size_t len)
+{
+    for(int i = 0; i < len;i++) {
+        printf("Buffer[%d] = %c\n",i,buf[i]);
+    }
+}
+
 //inline methods
 static inline void rmc_rread_sync(rmc_wq_t *wq, rmc_cq_t *cq, uint8_t *lbuff_base,
 				  uint64_t lbuff_offset, int snid, uint32_t ctx_id,
