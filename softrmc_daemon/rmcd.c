@@ -758,7 +758,7 @@ int main(int argc, char **argv)
                   printf("[rmc_poll] got something non-zero, nbytes = %d\n",nrecvd);
                   printf("Passed buf (string interpret): %s\n",rbuf);
                   // check whether it's an rpc send, or recv to already sent rpc
-                  int offset = nrecvd-1;
+                  int offset = nrecvd;
                   char dmux = *((char*)rbuf + offset);
                   printf("Reading dmux char from offset (%d): %c\n",offset,dmux);
                   switch( dmux ) {
