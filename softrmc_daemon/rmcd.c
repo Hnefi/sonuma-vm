@@ -329,7 +329,7 @@ int ctx_map(char **mem, unsigned page_cnt)
               exit(EXIT_FAILURE);
           }
 
-#ifdef DEBUG_RMC
+#if 0
           //for testing purposes
           for(int j=0; j<(dom_region_size)/sizeof(unsigned long); j++)
               printf("%lu\n", *((unsigned long *)ctx[i]+j));

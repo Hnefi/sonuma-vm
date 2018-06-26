@@ -36,6 +36,7 @@
 
 #include <vector>
 #include <algorithm>
+
 #include "sonuma.h"
 
 #define ITERS 4096

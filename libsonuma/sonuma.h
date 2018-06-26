@@ -105,11 +105,8 @@ int kal_reg_ctx(int fd, uint8_t **ctx_ptr, uint32_t num_pages);
 
 /* Msutherl: beta-implementations for send/recv. */
 
-void rmc_recv(rmc_wq_t *wq, rmc_cq_t *cq, char ctx_id, char *lbuff_ptr,int lbuff_offset, char *data, int size, int snid);
+void rmc_recv(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr,int lbuff_offset, char *data, int size, int snid);
 void rmc_send(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr, int lbuff_offset, char *data, int size, int snid);
-#ifdef __cplusplus
-}
-#endif
 
 //inline methods
 static inline void rmc_rread_sync(rmc_wq_t *wq, rmc_cq_t *cq, uint8_t *lbuff_base,
@@ -349,5 +346,9 @@ static inline uint16_t rmc_poll_cq_rpc(rmc_cq_t* cq, rpc_handler* theRPC)
     return retme;
   }
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* H_SONUMA */
