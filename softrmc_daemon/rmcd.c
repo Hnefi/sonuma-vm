@@ -787,12 +787,14 @@ int main(int argc, char **argv)
                               cq->q[*local_cq_head].sending_nid = qp_to_terminate;// FIXME: this should be the rpc server's qp
                               DLog("Received rpc SEND at rmc #%d. Receive-side QP info is:\n"
                                       "\t{ qp_to_terminate : %d },\n"
-                                      "\t{ local_cq_head : %d },\n", 
-                                      "\t{ QP[%d]->SR : %d },\n", 
-                                      "\t{ local_cq_SR : %d },\n", 
+                                      "\t{ local_cq_head : %d },\n"
+                                      "\t{ QP[%d]->SR : %d },\n"
+                                      "\t{ local_cq_SR : %d },\n"
                                       "\t{ CQ->SR : %d },\n", 
                                       this_nid, qp_to_terminate,*local_cq_head,
-                                      cq->q[*local_cq_head].SR,*local_cq_SR,cq->SR);
+                                      qp_to_terminate,cq->q[*local_cq_head].SR,
+                                      *local_cq_SR,
+                                      cq->SR);
                           }
                           break;
                       case 'g':
@@ -805,12 +807,14 @@ int main(int argc, char **argv)
                               cq->q[*local_cq_head].sending_nid = sending_qp;
                               DLog("Received rpc RETURN (\'g\') at rmc #%d. Send-side QP info is:\n"
                                       "\t{ sending_qp : %d },\n"
-                                      "\t{ local_cq_head : %d },\n",
-                                      "\t{ QP[%d]->SR : %d },\n", 
-                                      "\t{ local_cq_SR : %d },\n", 
-                                      "\t{ CQ->SR : %d },\n", 
+                                      "\t{ local_cq_head : %d },\n"
+                                      "\t{ QP[%d]->SR : %d },\n"
+                                      "\t{ local_cq_SR : %d },\n"
+                                      "\t{ CQ->SR : %d },\n"
                                       this_nid,sending_qp,*local_cq_head,
-                                      cq->q[*local_cq_head].SR,*local_cq_SR,cq->SR);
+                                      sending_qp,cq->q[*local_cq_head].SR,
+                                      *local_cq_SR,
+                                      cq->SR);
                           }
                           break;
                       default:
