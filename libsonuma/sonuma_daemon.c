@@ -216,7 +216,7 @@ void rmc_recv(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr,int lbuff_
     wq->q[wq_head].cid = ctx_id;
     *(lbuff_ptr + size) = 's';
     size += 1; // 1 byte more to pass the character 's'
-#ifdef DEBUG
+#if 0
     print_cbuf( (char*)lbuff_ptr , size );
 #endif
     size += 1; // 1 byte more to pass the character 's'

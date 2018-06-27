@@ -212,9 +212,9 @@ int local_buf_alloc(char **mem,const char* fname,size_t npages)
     return -1;
   }
   
-  memset(*mem, 0, npages );
+  memset(*mem, 0, npages*PAGE_SIZE );
     
-  retcode = mlock((void *)*mem, npages);
+  retcode = mlock((void *)*mem, npages*PAGE_SIZE);
   if(retcode != 0) {
     DLog("[local_buf_alloc] mlock returned %d", retcode);
     return -1;
@@ -671,8 +671,8 @@ int main(int argc, char **argv)
                       {
                           // send rmc->rmc rpc
                           int receiver = curr->nid;
+#if 0
                           DLog("Printing RPC Buffer before send.\n");
-#ifdef DEBUG_RMC
                           print_cbuf( (char*)(local_buffer + curr->buf_offset), curr->length);
 #endif
                           unsigned nbytes = send(sinfo[receiver].fd, (char *)(local_buffer + curr->buf_offset), curr->length, 0); // block to ensure WQ entry is processed
@@ -771,33 +771,31 @@ int main(int argc, char **argv)
                   // check whether it's an rpc send, or recv to already sent rpc
                   int offset = nrecvd;
                   char dmux = *((char*)rbuf + offset-1);
+#if 0
                   DLog("Printing RPC Buffer after receive.\n");
-#ifdef DEBUG_RMC
                   print_cbuf( (char*)rbuf, nrecvd );
 #endif
                   switch( dmux ) {
                       case 's':
                           {
                               uint8_t qp_to_terminate = get_server_qp();
+                              cq = cqs[qp_to_terminate];
                               // push into the cq.
-                              uint8_t* local_cq_head = &(local_CQ_heads[qp_to_terminate]);
-                              uint8_t* local_cq_SR = &(local_CQ_SRs[qp_to_terminate]);
-                              cq->q[*local_cq_head].rpc_buf = rbuf;
-                              cq->q[*local_cq_head].SR = *local_cq_SR;
-                              cq->q[*local_cq_head].sending_nid = qp_to_terminate;// FIXME: this should be the rpc server's qp
+                              uint8_t local_cq_head = local_CQ_heads[qp_to_terminate];
+                              uint8_t local_cq_SR = local_CQ_SRs[qp_to_terminate];
+                              cq->q[local_cq_head].rpc_buf = rbuf;
+                              cq->q[local_cq_head].SR = local_cq_SR;
+                              cq->q[local_cq_head].sending_nid = qp_to_terminate;// FIXME: this should be the rpc server's qp
                               DLog("Received rpc SEND at rmc #%d. Receive-side QP info is:\n"
                                       "\t{ qp_to_terminate : %d },\n"
                                       "\t{ local_cq_head : %d },\n"
                                       "\t{ QP[%d]->SR : %d },\n"
                                       "\t{ local_cq_SR : %d },\n"
                                       "\t{ CQ->SR : %d },\n", 
-                                      this_nid, qp_to_terminate,*local_cq_head,
-                                      qp_to_terminate,cq->q[*local_cq_head].SR,
-                                      *local_cq_SR,
+                                      this_nid, qp_to_terminate,local_cq_head,
+                                      qp_to_terminate,cq->q[local_cq_head].SR,
+                                      local_cq_SR,
                                       cq->SR);
-                              DLog("SHM address of QP: %p,"
-                                      " and of, cq->q: %p\n",
-                                      cq, cq->q);
                           }
                           break;
                       case 'g':
@@ -818,9 +816,6 @@ int main(int argc, char **argv)
                                       sending_qp,cq->q[*local_cq_head].SR,
                                       *local_cq_SR,
                                       cq->SR);
-                              DLog("SHM address of QP: %p,"
-                                      " and of, cq->q: %p\n",
-                                      cq, cq->q);
                           }
                           break;
                       default:
