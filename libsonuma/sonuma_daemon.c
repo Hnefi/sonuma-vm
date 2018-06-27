@@ -187,7 +187,7 @@ void rmc_send(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr, int lbuff
     }
 
     //wait for a completion of the entry
-    while(cq->q[cq_tail].SR == cq->SR) { }
+    while(cq->q[cq_tail].SR != cq->SR) { }
 
     //mark the entry as invalid, i.e. completed
     wq->q[cq->q[cq_tail].sending_nid].valid = 0;
@@ -219,7 +219,6 @@ void rmc_recv(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr,int lbuff_
 #if 0
     print_cbuf( (char*)lbuff_ptr , size );
 #endif
-    size += 1; // 1 byte more to pass the character 's'
     if(size < 64) wq->q[wq_head].length = 64; //at least 64B
     else wq->q[wq_head].length = size;
     wq->q[wq_head].op = 'g';
