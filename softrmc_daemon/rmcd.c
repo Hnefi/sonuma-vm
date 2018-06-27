@@ -803,8 +803,8 @@ int main(int argc, char **argv)
                               if(*local_cq_head >= MAX_NUM_WQ) {
                                   *local_cq_head = 0;
                                   *local_cq_SR ^= 1;
-                                  break;
                               }
+                              break;
                           }
                       case 'g':
                           {
@@ -829,10 +829,9 @@ int main(int argc, char **argv)
                               if(*local_cq_head >= MAX_NUM_WQ) {
                                   *local_cq_head = 0;
                                   *local_cq_SR ^= 1;
-                                  break;
                               }
+                              break;
                           }
-                          break;
                       default:
                         DLog("Garbage op. in stream recv. from socket.... drop it on the floor.\n");
                   }
