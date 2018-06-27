@@ -53,3 +53,6 @@ taskset -c 0 ./bench_async 1 w
 For performance reasons, a Scale-Out NUMA application running on this platform is bound to a single global address space, which is sufficient for the majority of use cases. Also, the size
 of the context is fixed by the RMC daemon and the kernel driver. One could try to increase the context size (these are just constants), but it is not guaranteed that the Xen hypervisor will grant access
 to all the pages.
+
+### Things to Remember
+- If your VMs crash, you will have to either `xl reboot` or `xl destroy` them. *This means you must change the domid in servers.txt!!!!*

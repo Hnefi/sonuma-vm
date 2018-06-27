@@ -32,10 +32,13 @@
 SHELL = /bin/sh
 CC    = g++
 
-CFLAGS       = -fPIC -Wall
+CFLAGS       += -fPIC -Wall -Wl,--no-undefined -DDEBUG
 
 #-combine
 LDFLAGS	= -shared -fPIC -lc -lpthread -lrt
+
+%.o : %.c
+	$(CC) $(CFLAGS) -c $^ -o $@ 
 
 TARGET  = libsonuma.so
 
@@ -50,7 +53,7 @@ OBJECTS = $(SOURCES:.c=.o)
 all: $(TARGET)
 
 $(TARGET): $(OBJECTS)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $(TARGET) $(OBJECTS)
+	$(CC) $(CFLAGS) -o $(TARGET) $(OBJECTS) $(LDFLAGS)
 	cp ./libsonuma.so ../bin/
 
 clean:

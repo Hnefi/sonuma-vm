@@ -7,6 +7,9 @@ bin/
 sample_code/bench_async
 sample_code/bench_server
 sample_code/bench_sync
+sample_code/multi_qp_read
+sample_code/rpc_sync
+sample_code/rpc_service
 softrmc_driver/*.cmd
 softrmc_driver/*.o
 softrmc_driver/.tmp_versions/

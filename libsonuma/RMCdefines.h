@@ -38,6 +38,8 @@
 
 #define MAX_NUM_WQ 64
 
+#define MAX_RPC_BYTES 2048
+
 #define KAL_REG_WQ      1
 #define KAL_UNREG_WQ    6
 #define KAL_REG_CQ      5
@@ -64,23 +66,46 @@ typedef struct wq_entry {
 typedef struct cq_entry { 
   volatile uint8_t SR;
   volatile uint8_t tid;
+  uint64_t srq_offset;
+  uint16_t sending_nid;
 } cq_entry_t;
 
 typedef struct rmc_wq {
   wq_entry_t q[MAX_NUM_WQ];
   uint8_t head;
   volatile uint8_t SR;
+  volatile bool connected;
 } rmc_wq_t;
 
 typedef struct rmc_cq {
   cq_entry_t q[MAX_NUM_WQ];
   uint8_t tail;
   volatile uint8_t SR;
+  volatile bool connected;
 } rmc_cq_t;
 
 typedef struct qp_info {
   int node_cnt;
   int this_nid;
 } qp_info_t;
+
+// debug entry for printing a wq entry
+
+// Pure C implementation to return str rep. of WQ entry
+// FIXME: assumes buffer has enough space (please buffer-overflow attack this!)
+int stringify_wq_entry(wq_entry_t* entry,char* buf)
+{
+    return sprintf(buf,
+            "{ Operation = %c,"
+            " SR = %u,"
+            " Valid = %u,"
+            " LBuf_Addr = %#lx,"
+            " LBuf_Offset = %#lx,"
+            " Node ID = %d,"
+            " CTlx Offset = %#lx,"
+            " Read Length = %d }\n"
+            , entry->op, entry->SR, entry->valid, entry->buf_addr, entry->buf_offset,
+            entry->nid, entry->offset, entry->length);
+}
 
 #endif /* H_RMC_DEFINES */

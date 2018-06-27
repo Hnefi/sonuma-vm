@@ -30,7 +30,8 @@
  */
 
 /*
- *  Remote read test for libsonuma and SoftRMC
+ * Msutherl:
+ *  RPC test using rmc_send 
  */
 
 #include <vector>
@@ -38,7 +39,7 @@
 
 #include "sonuma.h"
 
-#define ITERS 4096
+#define ITERS 1
 #define SLOT_SIZE 64
 #define OBJ_READ_SIZE 64
 #define CTX_0 0
@@ -58,18 +59,21 @@ int main(int argc, char **argv)
 
   int num_iter = (int)ITERS;
 
-  if (argc != 3) {
-    fprintf(stdout,"Usage: ./bench_sync <target_nid> <op_type>\n"); 
+  if (argc != 5) {
+    fprintf(stdout,"Usage: ./rpc <target_nid> <this_nid> <local_qp_id> <rpc_size> \n"); 
     return 1;
   }
     
-  int snid = atoi(argv[1]);
-  char op = *argv[2];
+  int target_nid = atoi(argv[1]);
+  int snid = atoi(argv[2]);
+  int qp_id = atoi(argv[3]);
+  int rpc_size = atoi(argv[4]);
   uint64_t ctx_size = PAGE_SIZE * PAGE_SIZE;
   uint64_t buf_size = PAGE_SIZE;
 
   uint8_t *ctx = NULL;
   uint8_t *lbuff = NULL;
+  uint8_t *srq = NULL;
   uint64_t lbuff_slot;
   uint64_t ctx_offset;
   
@@ -90,6 +94,17 @@ int main(int argc, char **argv)
 	    lbuff, buf_size/PAGE_SIZE);
   }
 
+  // register SRQ
+  size_t srq_size = (MAX_RPC_BYTES+1) * MAX_NUM_WQ; // FIXME: dynamic resize later
+  size_t n_srq_pages = (srq_size / PAGE_SIZE) + 1;
+  if(kal_reg_lbuff(fd, &srq, "srq.txt" ,n_srq_pages) < 0) {
+    printf("Failed to map memory for SRQ\n");
+    return -1;
+  } else {
+    fprintf(stdout, "SRQ buffers were mapped to address %p, number of pages is %ld\n",
+	    srq, n_srq_pages);
+  }
+
   //register context
   if(kal_reg_ctx(fd, &ctx, ctx_size/PAGE_SIZE) < 0) {
     printf("Failed to allocate context\n");
@@ -100,7 +115,7 @@ int main(int argc, char **argv)
   }
 
   //register WQ
-  if(kal_reg_wq(fd, &wq,0) < 0) {
+  if(kal_reg_wq(fd, &wq,qp_id) < 0) {
     printf("Failed to register WQ\n");
     return -1;
   } else {
@@ -108,38 +123,38 @@ int main(int argc, char **argv)
   }
 
   //register CQ
-  if(kal_reg_cq(fd, &cq,0) < 0) {
+  if(kal_reg_cq(fd, &cq,qp_id) < 0) {
     printf("Failed to register CQ\n");
   } else {
     fprintf(stdout, "CQ was registered.\n");
   }
   
-  fprintf(stdout,"Init done! Will execute %d WQ operations - SYNC! (snid = %d)\n",
-	  num_iter, snid);
+  fprintf(stdout,"Init done! Will execute %d WQ operations - SYNC! (target_node = %d, snid = %d)\n",num_iter, target_nid,snid);
 
   unsigned long long start, end;
   
   lbuff_slot = 0;
+  const char tmp[11] = "marks rpc\0";
   
   for(size_t i = 0; i < num_iter; i++) {
     ctx_offset = (i * PAGE_SIZE) % ctx_size;
-    lbuff_slot = (i * sizeof(uint32_t)) % (PAGE_SIZE - OBJ_READ_SIZE);
+    lbuff_slot = (i * (OBJ_READ_SIZE+1)) % (PAGE_SIZE - (OBJ_READ_SIZE+1)); // 64B+1 increments, wrap-around after that much
+
+    // write a test string into lbuff
+    for(int o = 0; o < 12; o++) {
+        *(lbuff + (lbuff_slot+o)) = tmp[o];
+    }
 
     start = rdtsc();
 
-    if(op == 'r') {
-      rmc_rread_sync(wq, cq, lbuff, lbuff_slot, snid, CTX_0, ctx_offset, OBJ_READ_SIZE);
-    } else if(op == 'w') {
-      rmc_rwrite_sync(wq, cq, lbuff, lbuff_slot, snid, CTX_0, ctx_offset, OBJ_READ_SIZE);
-    } else
-      ;
-    
+    //rmc_rread_sync(wq, cq, lbuff, lbuff_slot, snid, CTX_0, ctx_offset, OBJ_READ_SIZE);
+    rmc_send(wq, cq, CTX_0, (char*)lbuff, lbuff_slot, (char*)srq, OBJ_READ_SIZE,target_nid);
+
     end = rdtsc();
     
-    if(op == 'r') {
-      printf("read this number: %u\n", ((uint32_t*)lbuff)[lbuff_slot/sizeof(uint32_t)]);
-    }
+#ifdef TIME_OPS
     printf("time to execute this op: %lf ns\n", ((double)end - start)/CPU_FREQ);
+#endif
   }
  
   return 0;

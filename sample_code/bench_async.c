@@ -57,13 +57,14 @@ int main(int argc, char **argv)
 
   int num_iter = (int)ITERS;
 
-  if (argc != 3) {
-    fprintf(stdout,"Usage: ./bench_sync <target_nid> <op_type>\n"); 
+  if (argc != 4) {
+    fprintf(stdout,"Usage: ./bench_async <target_nid> <op_type> <qp_id>\n"); 
     return 1;
   }
     
   int snid = atoi(argv[1]);
   char op = *argv[2];
+  int qp_id = atoi(argv[3]);
   uint64_t ctx_size = PAGE_SIZE * PAGE_SIZE;
   uint64_t buf_size = PAGE_SIZE;
 
@@ -80,8 +81,10 @@ int main(int argc, char **argv)
   
   op_cnt = (int)ITERS;
   
+  char fmt[25];
+  sprintf(fmt,"local_buf_ref_%d.txt",qp_id);
   //local buffer
-  if(kal_reg_lbuff(fd, &lbuff, buf_size/PAGE_SIZE) < 0) {
+  if(kal_reg_lbuff(fd, &lbuff, fmt,buf_size/PAGE_SIZE) < 0) {
     printf("Failed to allocate local buffer\n");
     return -1;
   } else {
@@ -98,14 +101,14 @@ int main(int argc, char **argv)
 	    ctx_size, ctx_size*sizeof(uint8_t) / PAGE_SIZE);
   }
   
-  if(kal_reg_wq(fd, &wq) < 0) {
+  if(kal_reg_wq(fd, &wq,qp_id) < 0) {
     printf("Failed to register WQ\n");
     return -1;
   } else {
     fprintf(stdout, "WQ was registered.\n");
   }
 
-  if(kal_reg_cq(fd, &cq) < 0) {
+  if(kal_reg_cq(fd, &cq,qp_id) < 0) {
     printf("Failed to register CQ\n");
   } else {
     fprintf(stdout, "CQ was registered.\n");
@@ -126,7 +129,7 @@ int main(int argc, char **argv)
     rmc_check_cq(wq, cq, &handler, NULL);            
 
     if(op == 'r') {
-      rmc_rread_async(wq, lbuff, lbuff_slot, snid, CTX_0, ctx_offset, OBJ_READ_SIZE);
+      rmc_send(wq, cq, CTX_0, (char*)lbuff, lbuff_slot, (char*)lbuff, OBJ_READ_SIZE,snid); // FIXME: local buffer and data needed? why not 1?
     } else if(op == 'w') {
       rmc_rwrite_async(wq, lbuff, lbuff_slot, snid, CTX_0, ctx_offset, OBJ_READ_SIZE);
     } else

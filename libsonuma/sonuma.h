@@ -48,8 +48,7 @@
 #include <assert.h>
 
 #include "RMCdefines.h"
-
-#define RMC_DEV "/dev/rmc"
+#define RMC_DEV "/dev/sonuma_rmc"
 
 #ifdef DEBUG
 #define DLog(M, ...) fprintf(stdout, "DEBUG %s:%d: " M "\n", __FILE__, __LINE__, ##__VA_ARGS__)
@@ -64,6 +63,7 @@
 #endif
 
 typedef void (async_handler)(uint8_t tid, wq_entry_t *head, void *owner);
+typedef void (rpc_handler)(uint16_t sending_nid, char* srq, cq_entry_t *head, void *owner);
 
 #ifdef __cplusplus
 extern "C" {
@@ -79,21 +79,22 @@ int kal_open(char *kal_name);
  * Warning: it allocates memory for WQ and pins the memory
  *          to avoid swapping to the disk.
  */
-int kal_reg_wq(int fd, rmc_wq_t **wq_ptr);
+int kal_reg_wq(int fd, rmc_wq_t **wq_ptr, int wq_id);
 
 /**
  * This func registers CQ with KAL.
  * Warning: it allocates memory for WQ and pins the memory
  *          to avoid swapping to the disk.
  */
-int kal_reg_cq(int fd, rmc_cq_t **cq_ptr);
+int kal_reg_cq(int fd, rmc_cq_t **cq_ptr, int cq_id);
 
 /**
  * This func registers local buffer with KAL.
  * Warning: the func pins the memory to avoid swapping to
  *          the disk.
  */
-int kal_reg_lbuff(int fd, uint8_t **buff_ptr, uint32_t num_pages);
+//int kal_reg_lbuff(int fd, uint8_t **buff_ptr, uint32_t num_pages,int lb_id);
+int kal_reg_lbuff(int fd, uint8_t **buff_ptr, const char* lb_name, uint32_t num_pages);
 
 /**
  * This func registers context buffer with KAL.
@@ -102,22 +103,17 @@ int kal_reg_lbuff(int fd, uint8_t **buff_ptr, uint32_t num_pages);
  */
 int kal_reg_ctx(int fd, uint8_t **ctx_ptr, uint32_t num_pages);
 
+/* Msutherl: beta-implementations for send/recv. */
 
-/**
- * This func implements the receive functionality for solicited communication
- */
-int rmc_send(rmc_wq_t *wq, rmc_cq_t *cq, char *ctx, char *lbuff_ptr,
-	     int lbuff_offset, char *data, int size, int snid);
+void rmc_recv(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr,int lbuff_offset, char *data, int size, int snid);
+void rmc_send(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr, int lbuff_offset, char *data, int size, int snid);
 
-/**
- * This func implements the receive functionality for solicited communication
- */
-int rmc_recv(rmc_wq_t *wq, rmc_cq_t *cq, char *ctx, char *lbuff_ptr,
-	     int lbuff_offset, int snid, char *data, int size);
-
-#ifdef __cplusplus
+void print_cbuf(char* buf, size_t len)
+{
+    for(unsigned i = 0; i < len;i++) {
+        printf("Buffer[%d] = %c\n",i,buf[i]);
+    }
 }
-#endif
 
 //inline methods
 static inline void rmc_rread_sync(rmc_wq_t *wq, rmc_cq_t *cq, uint8_t *lbuff_base,
@@ -334,5 +330,33 @@ static inline int rmc_drain_cq(rmc_wq_t *wq, rmc_cq_t *cq, async_handler *handle
   
   return 0;
 }
+
+static inline uint16_t rmc_poll_cq_rpc(rmc_cq_t* cq, char* srq, rpc_handler* theRPC)
+{
+  uint16_t retme;
+  uint8_t cq_tail = cq->tail;
+
+  printf("Polling CQ[%d].SR = %d. CQ->SR = %d\n",
+          cq_tail, cq->q[cq_tail].SR, cq->SR);
+  // wait for entry to arrive in cq
+  while(cq->q[cq_tail].SR != cq->SR ) { }
+  printf("Valid entry in CQ (index %d)! Entry SR = %d, Q. SR = %d. SRQ offset = %d\n",cq_tail,cq->q[cq_tail].SR,cq->SR,cq->q[cq_tail].srq_offset);
+  // call handler and set nid for sending wq in return
+  retme = cq->q[cq_tail].sending_nid;
+  theRPC(retme, srq, &(cq->q[cq_tail]), NULL);
+
+  cq->tail = cq->tail + 1;
+  //check if CQ reached its end
+  if (cq->tail >= MAX_NUM_WQ) {
+      cq->tail = 0;
+      cq->SR ^= 1;
+  }
+  cq_tail = cq->tail;
+  return retme;
+}
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* H_SONUMA */

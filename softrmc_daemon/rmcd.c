@@ -39,6 +39,7 @@
 #include <unistd.h>
 #include <assert.h>
 #include <errno.h>
+#include <stdio.h>
 
 #include <vector>
 #include <algorithm>
@@ -58,7 +59,30 @@ static char *ctx[MAX_NODE_CNT];
 
 static int node_cnt, this_nid;
 
-int alloc_wq(rmc_wq_t **qp_wq)
+// rpc recv. buffer
+static char* srq_buf;
+
+// Msutherl: returns offset to SRQ for RMC to place data into
+int get_srq_offset() {
+    //TODO
+    return 0;
+}
+
+// Msutherl: returns qp number for RMC to terminate RMC to
+uint8_t get_server_qp()
+{
+    //TODO
+    return 0;
+}
+
+void print_cbuf(char* buf, size_t len)
+{
+    for(int i = 0; i < len;i++) {
+        printf("Buffer[%d] = %c\n",i,buf[i]);
+    }
+}
+
+int alloc_wq(rmc_wq_t **qp_wq, int wq_id)
 {
   int retcode, i;
   FILE *f;
@@ -72,8 +96,9 @@ int alloc_wq(rmc_wq_t **qp_wq)
 
     printf("[alloc_wq] shmat completed\n");
 
-
-    f = fopen("wq_ref.txt", "w");
+    char fmt[15];
+    sprintf(fmt,"wq_ref_%d.txt",wq_id);
+    f = fopen(fmt, "w");
     fprintf(f, "%d", shmid);
     fclose(f);
   } else {
@@ -88,7 +113,7 @@ int alloc_wq(rmc_wq_t **qp_wq)
   }
   
   //initialize wq memory
-  printf("size of rmc_wq_t: %u\n", sizeof(rmc_wq_t));
+  printf("size of rmc_wq_t: %lu\n", sizeof(rmc_wq_t));
   memset(wq, 0, sizeof(rmc_wq_t));
 
   printf("[alloc_wq] memset the WQ memory\n");
@@ -104,6 +129,7 @@ int alloc_wq(rmc_wq_t **qp_wq)
   //setup work queue
   wq->head = 0;
   wq->SR = 1;
+  wq->connected = false;
 
   for(i=0; i<MAX_NUM_WQ; i++) {
     wq->q[i].SR = 0;
@@ -112,7 +138,7 @@ int alloc_wq(rmc_wq_t **qp_wq)
   return 0;
 }
 
-int alloc_cq(rmc_cq_t **qp_cq)
+int alloc_cq(rmc_cq_t **qp_cq, int cq_id)
 {
   int retcode, i;
   FILE *f;
@@ -123,7 +149,10 @@ int alloc_cq(rmc_cq_t **qp_cq)
     printf("[alloc_cq] shmget for CQ okay, shmid = %d\n", shmid);
     *qp_cq = (rmc_cq_t *)shmat(shmid, NULL, 0);
 
-    f = fopen("cq_ref.txt", "w");
+    char fmt[15];
+    sprintf(fmt,"cq_ref_%d.txt",cq_id);
+
+    f = fopen(fmt, "w");
     fprintf(f, "%d", shmid);
     fclose(f);
   } else {
@@ -133,7 +162,7 @@ int alloc_cq(rmc_cq_t **qp_cq)
   rmc_cq_t *cq = *qp_cq; 
   
   if (cq == NULL) {
-    DLog("[alloc_cq] Work Queue could not be allocated.");
+    DLog("[alloc_cq] Completion Queue could not be allocated.");
     return -1;
   }
   
@@ -142,15 +171,16 @@ int alloc_cq(rmc_cq_t **qp_cq)
     
   retcode = mlock((void *)cq, PAGE_SIZE);
   if(retcode != 0) {
-    DLog("[alloc_cq] WQueue mlock returned %d", retcode);
+    DLog("[alloc_cq] CQueue mlock returned %d", retcode);
     return -1;
   } else {
-    DLog("[alloc_cq] WQ was pinned successfully.");
+    DLog("[alloc_cq] CQ was pinned successfully.");
   }
 
-  //setup work queue
+  //setup completion queue
   cq->tail = 0;
   cq->SR = 1;
+  cq->connected = false;
 
   for(i=0; i<MAX_NUM_WQ; i++) {
     cq->q[i].SR = 0;
@@ -159,23 +189,22 @@ int alloc_cq(rmc_cq_t **qp_cq)
   return 0;
 }
 
-int local_buf_alloc(char **mem)
+int local_buf_alloc(char **mem,const char* fname,size_t npages)
 {
   int retcode;
   FILE *f;
   
-  int shmid = shmget(IPC_PRIVATE, PAGE_SIZE,
+  int shmid = shmget(IPC_PRIVATE, npages * PAGE_SIZE,
 			     SHM_R | SHM_W);
   if(-1 != shmid) {
-    printf("[local_buf_alloc] shmget for local buffer okay, shmid = %d\n",
+    DLog("[local_buf_alloc] shmget for local buffer okay, shmid = %d\n",
 	   shmid);
     *mem = (char *)shmat(shmid, NULL, 0);
-
-    f = fopen("local_buf_ref.txt", "w");
+    f = fopen(fname, "w");
     fprintf(f, "%d", shmid);
     fclose(f);
   } else {
-    printf("[local_buf_alloc] shmget failed\n");
+    DLog("[local_buf_alloc] shmget failed for lbuf_name = %s\n",fname);
   }
 
   if (*mem == NULL) {
@@ -183,15 +212,18 @@ int local_buf_alloc(char **mem)
     return -1;
   }
   
-  memset(*mem, 0, PAGE_SIZE);
+  memset(*mem, 0, npages*PAGE_SIZE );
     
-  retcode = mlock((void *)*mem, PAGE_SIZE);
+  retcode = mlock((void *)*mem, npages*PAGE_SIZE);
   if(retcode != 0) {
     DLog("[local_buf_alloc] mlock returned %d", retcode);
     return -1;
   } else {
     DLog("[local_buf_alloc] was pinned successfully.");
   }
+
+  DLog("[local_buf_alloc] Successfully created app-mapped lbuf with name = %s\n",
+          fname);
 
   return 0;
 }
@@ -304,9 +336,9 @@ int ctx_map(char **mem, unsigned page_cnt)
               exit(EXIT_FAILURE);
           }
 
-#ifdef DEBUG_RMC
+#if 0
           //for testing purposes
-          for(j=0; j<(dom_region_size)/sizeof(unsigned long); j++)
+          for(int j=0; j<(dom_region_size)/sizeof(unsigned long); j++)
               printf("%lu\n", *((unsigned long *)ctx[i]+j));
 #endif
       }
@@ -392,13 +424,13 @@ int ctx_alloc_grant_map(char **mem, unsigned page_cnt)
   servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
   servaddr.sin_port=htons(PORT);
     
-  if((setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval))) == -1) {
-    printf("Error on setsockopt\n");
+  if((setsockopt(listen_fd, SOL_SOCKET,SO_REUSEPORT,&optval, sizeof(optval))) == -1) {
+    perror("Error on setsockopt.\n");
     exit(EXIT_FAILURE);
   }
 
   if(bind(listen_fd, (struct sockaddr *)&servaddr, sizeof(servaddr)) == -1) {
-    fprintf(stderr, "Address binding error\n");
+    perror("Address binding error in ctx_create_global_space.\n");
     exit(EXIT_FAILURE);
   }
 
@@ -506,139 +538,322 @@ int main(int argc, char **argv)
 {
   int i;
   
-  //queue pairs
-  volatile rmc_wq_t *wq = NULL;
-  volatile rmc_cq_t *cq = NULL;
-  
+  // change this to allocate many QPs
+  volatile rmc_wq_t** wqs = NULL;
+  volatile rmc_cq_t** cqs = NULL;
+
   //local context region
   char *local_mem_region;
 
   //local buffer
-  char *local_buffer;
+  char **local_buffers;
 
-  if(argc != 3) {
-    printf("[main] incorrect number of arguments\n");
+  if(argc != 4) {
+    printf("[main] incorrect number of arguments\n"
+            "Usage: ./rmcd <Num. soNUMA Nodes> <ID of this node> <Num QPs to expose>\n");
     exit(1);
   }
 
   node_cnt = atoi(argv[1]);
   this_nid = atoi(argv[2]);
+  unsigned num_qps = atoi(argv[3]);
   
-  //allocate a queue pair
-  alloc_wq((rmc_wq_t **)&wq);
-  alloc_cq((rmc_cq_t **)&cq);
+  wqs = (volatile rmc_wq_t**) calloc(num_qps,sizeof(rmc_wq_t*));
+  cqs = (volatile rmc_cq_t**) calloc(num_qps,sizeof(rmc_cq_t*));
+  local_buffers = (char**) calloc(num_qps,sizeof(char*));
 
-  //create the global address space
+  //allocate a queue pair
+  for(int i = 0; i < num_qps; i++) {
+      alloc_wq((rmc_wq_t **)&wqs[i],i);
+      alloc_cq((rmc_cq_t **)&cqs[i],i);
+      //allocate local buffers
+      char fmt[20];
+      sprintf(fmt,"local_buf_ref_%d.txt",i);
+      local_buf_alloc(&local_buffers[i],fmt,1);
+  }
+
+  size_t srq_size = (MAX_RPC_BYTES+1) * MIN_RPCBUF_ENTRIES;
+  size_t n_srq_pages = (srq_size / PAGE_SIZE) + 1;
+  local_buf_alloc(&srq_buf,"srq.txt",n_srq_pages);
+
+ //create the global address space
   if(ctx_alloc_grant_map(&local_mem_region, MAX_REGION_PAGES) == -1) {
     printf("[main] context not allocated\n");
     return -1;
   }
-
-  //allocate local buffer
-  local_buf_alloc(&local_buffer);
   
-  //WQ ptrs
-  uint8_t local_wq_tail = 0;
-  uint8_t local_wq_SR = 1;
+  // WQ and CQ ptrs (per pair)
+  uint8_t* local_WQ_tails= (uint8_t*)calloc(num_qps,sizeof(uint8_t));
+  uint8_t* local_WQ_SRs = (uint8_t*)calloc(num_qps,sizeof(uint8_t));
 
   //CQ ptrs
-  uint8_t local_cq_head = 0;
-  uint8_t local_cq_SR = 1;
+  uint8_t* local_CQ_heads = (uint8_t*)calloc(num_qps,sizeof(uint8_t));
+  uint8_t* local_CQ_SRs = (uint8_t*)calloc(num_qps,sizeof(uint8_t));
   
-  uint8_t compl_idx;
+  uint8_t* compl_idx = (uint8_t*)calloc(num_qps,sizeof(uint8_t));
   
-  volatile wq_entry_t *curr;
+  volatile wq_entry_t* curr;
+  for(int ii = 0; ii < num_qps; ii++) { // init per-qp structures
+      local_WQ_tails[ii] = 0;
+      local_WQ_SRs[ii] = 1;
+      local_CQ_heads[ii] = 0;
+      local_CQ_SRs[ii] = 1;
+  }
   
 #ifdef DEBUG_PERF_RMC
   struct timespec start_time, end_time;
   uint64_t start_time_ns, end_time_ns;
   vector<uint64_t> stimes;
 #endif
+
+  // local pointers for wq/cq polling
+  volatile rmc_wq_t* wq;
+  volatile rmc_cq_t* cq;
+  char* local_buffer;
   
   while(rmc_active) {
-    while (wq->q[local_wq_tail].SR == local_wq_SR) {
-#ifdef DEBUG_PERF_RMC
-      clock_gettime(CLOCK_MONOTONIC, &start_time);
-#endif
-      
-#ifdef DEBUG_RMC      
-      printf("[main] reading remote memory, offset = %lu\n",
-	     wq->q[local_wq_tail].offset);
-      
-      printf("[main] buffer address %lu\n",
-	     wq->q[local_wq_tail].buf_addr);
-      
-      printf("[main] nid = %d; offset = %d, len = %d\n", wq->q[local_wq_tail].nid,
-	     wq->q[local_wq_tail].offset, wq->q[local_wq_tail].length);
-#endif
-      curr = &(wq->q[local_wq_tail]);
-      
-      if(curr->op == 'r') {
-	memcpy((uint8_t *)(local_buffer + curr->buf_offset),
-	       ctx[curr->nid] + curr->offset,
-	       curr->length);
-      } else {
-	memcpy(ctx[curr->nid] + curr->offset,
-	       (uint8_t *)(local_buffer + curr->buf_offset),
-	       curr->length);	
-      }
+      /* New architecture:
+       * - Do one round of QP polling and process all entries.
+       * - Then use poll() to look at all sockets for incoming rmc-rmc transfers
+       */
+      for(int qp_num = 0; qp_num < num_qps; qp_num++) { // QP polling round
+          wq = wqs[qp_num];
+          cq = cqs[qp_num];
+          local_buffer = local_buffers[qp_num];
+          uint8_t* local_wq_tail = &(local_WQ_tails[qp_num]);
+          uint8_t* local_cq_head = &(local_CQ_heads[qp_num]);
+          uint8_t* local_wq_SR = &(local_WQ_SRs[qp_num]);
+          uint8_t* local_cq_SR = &(local_CQ_SRs[qp_num]);
+          while ( wq->connected == true && // poll only connected WQs;
+                  (wq->q[*local_wq_tail].SR == *local_wq_SR) ) {
+
+              DLog("[main] : Processing WQ entry [%d] (local_wq_tail) from QP number %d. QP->SR = %d, local_wq_SR = %d\n",*local_wq_tail,qp_num,wq->SR,*local_wq_SR);
 
 #ifdef DEBUG_PERF_RMC
-      clock_gettime(CLOCK_MONOTONIC, &end_time);
-      start_time_ns = BILLION * start_time.tv_sec + start_time.tv_nsec;
-      end_time_ns = BILLION * end_time.tv_sec + end_time.tv_nsec;
-      printf("[main] memcpy latency: %u ns\n", end_time_ns - start_time_ns);
+              clock_gettime(CLOCK_MONOTONIC, &start_time);
 #endif
-      
-#ifdef DEBUG_PERF_RMC
-      clock_gettime(CLOCK_MONOTONIC, &start_time);
+
+              /* Msutherl - replaced with stringify_(... )
+               * DLog("[main] reading remote memory, offset = %#x\n",
+                      wq->q[*local_wq_tail].offset);
+              DLog("[main] buffer address %#x\n",
+                      wq->q[*local_wq_tail].buf_addr);
+              DLog("[main] nid = %d; offset = %#x, len = %d\n", wq->q[*local_wq_tail].nid, wq->q[*local_wq_tail].offset, wq->q[*local_wq_tail].length);
+              */
+
+              curr = &(wq->q[*local_wq_tail]);
+#ifdef DEBUG_RMC // used ifdef here to avoid stringify every single time
+              // (even in perf-mode)
+              char wq_entry_buf[180];
+              int stringify_return = stringify_wq_entry((wq_entry_t*)curr,wq_entry_buf);
+              if( stringify_return < 0 ) {
+                  DLog("COULD NOT STRINGIFY CURR!!!!\n");
+              } else {
+                DLog("%s",wq_entry_buf);
+              }
+              DLog("Global ctx address: %p\n",ctx[curr->nid] + curr->offset);
 #endif
-      
-      compl_idx = local_wq_tail;
-      
-      local_wq_tail += 1;
-      if (local_wq_tail >= MAX_NUM_WQ) {
-	local_wq_tail = 0;
-	local_wq_SR ^= 1;
-      }
-      
-      //notify the application
-      cq->q[local_cq_head].tid = compl_idx;
-      cq->q[local_cq_head].SR = local_cq_SR;
-      
-      local_cq_head += 1;
-      if(local_cq_head >= MAX_NUM_WQ) {
-	local_cq_head = 0;
-	local_cq_SR ^= 1;
-      }
+
+              switch(curr->op) {
+                  // Msutherl: r/w are 1 sided ops, s/g are send/receive
+                  case 'r':
+                      memcpy((uint8_t *)(local_buffer + curr->buf_offset),
+                              ctx[curr->nid] + curr->offset,
+                              curr->length);
+                      break;
+                  case 'w':
+                      memcpy(ctx[curr->nid] + curr->offset,
+                              (uint8_t *)(local_buffer + curr->buf_offset),
+                              curr->length);	
+                      break;
+                  case 's':
+                  case 'g':
+                      {
+                          // send rmc->rmc rpc
+                          int receiver = curr->nid;
+#if 0
+                          DLog("Printing RPC Buffer before send.\n");
+                          print_cbuf( (char*)(local_buffer + curr->buf_offset), curr->length);
+#endif
+                          unsigned nbytes = send(sinfo[receiver].fd, (char *)(local_buffer + curr->buf_offset), curr->length, 0); // block to ensure WQ entry is processed
+                          if( nbytes < 0 ) {
+                              perror("[rmc_rpc] send failed, w. error:");
+                          }  
+                          break;
+                      }
+                  case 'a': ;
+                      // TODO: model rendezvous method of transfer
+                  default:
+                      DLog("Un-implemented op. in WQ entry. drop it on the floor.\n");
+              } // switch WQ entry types
 
 #ifdef DEBUG_PERF_RMC
-      clock_gettime(CLOCK_MONOTONIC, &end_time);
-      start_time_ns = BILLION * start_time.tv_sec + start_time.tv_nsec;
-      end_time_ns = BILLION * end_time.tv_sec + end_time.tv_nsec;
-      printf("[main] notification latency: %u ns\n", end_time_ns - start_time_ns);
+              clock_gettime(CLOCK_MONOTONIC, &end_time);
+              start_time_ns = BILLION * start_time.tv_sec + start_time.tv_nsec;
+              end_time_ns = BILLION * end_time.tv_sec + end_time.tv_nsec;
+              printf("[main] memcpy latency: %u ns\n", end_time_ns - start_time_ns);
 #endif
-      
-#ifdef DEBUG_RMC
-      stimes.insert(stimes.begin(), end_time_ns - start_time_ns);
-      
-      if(stimes.size() == 100) {
-	long sum = 0;
-	sort(stimes.begin(), stimes.end());
-	for(int i=0; i<100; i++)
-	  sum += stimes[i];
-	
-	while (!stimes.empty())
-	  stimes.pop_back();
+
+#ifdef DEBUG_PERF_RMC
+              clock_gettime(CLOCK_MONOTONIC, &start_time);
+#endif
+
+              // notify the application
+              if ( curr->op == 'w' || curr->op == 'r' ) {
+                    //|| curr->op == 's' ) { 
+                  *compl_idx = *local_wq_tail;
+                  *local_wq_tail += 1;
+
+                  if (*local_wq_tail >= MAX_NUM_WQ) {
+                      *local_wq_tail = 0;
+                      *local_wq_SR ^= 1;
+                  }
+
+                  cq->q[*local_cq_head].tid = *compl_idx;
+                  cq->q[*local_cq_head].SR = *local_cq_SR;
+
+                  *local_cq_head += 1;
+                  if(*local_cq_head >= MAX_NUM_WQ) {
+                      *local_cq_head = 0;
+                      *local_cq_SR ^= 1;
+                  }
+              } else if (curr->op == 's') {
+                  // rmc send. mark WQ as processed but no CQ yet
+                  // (that's created on receiving something through rmc->rmc socket)
+                  *local_wq_tail += 1;
+                  if (*local_wq_tail >= MAX_NUM_WQ) {
+                      *local_wq_tail = 0;
+                      *local_wq_SR ^= 1;
+                  }
+              } else if (curr->op == 'g') {
+                  // rmc receive. unmark WQ as valid, to reuse
+                  *local_wq_tail += 1;
+                  if (*local_wq_tail >= MAX_NUM_WQ) {
+                      *local_wq_tail = 0;
+                      *local_wq_SR ^= 1;
+                  }
+                  //mark the entry as invalid, i.e. completed
+                  curr->valid = 0;
+              } else 
+                  DLog("Un-implemented op. in WQ entry. drop it on the floor.\n");
+
+#ifdef DEBUG_PERF_RMC
+              clock_gettime(CLOCK_MONOTONIC, &end_time);
+              start_time_ns = BILLION * start_time.tv_sec + start_time.tv_nsec;
+              end_time_ns = BILLION * end_time.tv_sec + end_time.tv_nsec;
+              printf("[main] notification latency: %u ns\n", end_time_ns - start_time_ns);
+#endif
+
+#ifdef DEBUG_PERF_RMC
+              stimes.insert(stimes.begin(), end_time_ns - start_time_ns);
+
+              if(stimes.size() == 100) {
+                  long sum = 0;
+                  sort(stimes.begin(), stimes.end());
+                  for(int i=0; i<100; i++)
+                      sum += stimes[i];
+
+                  while (!stimes.empty())
+                      stimes.pop_back();
+              }
+#endif
+          } // end process all entries in this WQ
+      }// end loop over qps
+
+      // Msutherl: check all sockets (sinfos) for outstanding rpc
+      for(i = 0; i < node_cnt; i++) {
+          if( i != this_nid ) {
+              int srq_o = get_srq_offset();
+              char* rbuf = (char*)(srq_buf + srq_o);
+              int nrecvd = recv(sinfo[i].fd, rbuf, MAX_RPC_BYTES+1, MSG_DONTWAIT);
+              if( nrecvd > 0 ) {
+                  printf("[rmc_poll] got something non-zero, nbytes = %d\n",nrecvd);
+                  printf("Passed buf (string interpret): %s\n",rbuf);
+                  // check whether it's an rpc send, or recv to already sent rpc
+                  int offset = nrecvd;
+                  char dmux = *((char*)rbuf + offset-1);
+#if 0
+                  DLog("Printing RPC Buffer after receive.\n");
+                  print_cbuf( (char*)rbuf, nrecvd );
+#endif
+                  switch( dmux ) {
+                      case 's':
+                          {
+                              uint8_t qp_to_terminate = get_server_qp();
+                              cq = cqs[qp_to_terminate];
+                              // push into the cq.
+                              uint8_t* local_cq_head = &(local_CQ_heads[qp_to_terminate]);
+                              uint8_t* local_cq_SR = &(local_CQ_SRs[qp_to_terminate]);
+                              cq->q[*local_cq_head].srq_offset = srq_o;
+                              cq->q[*local_cq_head].SR = *local_cq_SR;
+                              cq->q[*local_cq_head].sending_nid = qp_to_terminate;// FIXME: this should be the rpc server's qp
+                              DLog("Received rpc SEND (\'s\') at rmc #%d. Receive-side QP info is:\n"
+                                      "\t{ qp_to_terminate : %d },\n"
+                                      "\t{ local_cq_head : %d },\n"
+                                      "\t{ QP[%d]->SR : %d },\n"
+                                      "\t{ local_cq_SR : %d },\n"
+                                      "\t{ CQ->SR : %d },\n"
+                                      "\t{ srq_address : %p },\n",
+                                      this_nid, qp_to_terminate,*local_cq_head,
+                                      qp_to_terminate,cq->q[*local_cq_head].SR,
+                                      *local_cq_SR,
+                                      cq->SR,
+                                      rbuf);
+                              *local_cq_head += 1;
+                              if(*local_cq_head >= MAX_NUM_WQ) {
+                                  *local_cq_head = 0;
+                                  *local_cq_SR ^= 1;
+                              }
+                              break;
+                          }
+                      case 'g':
+                          {
+                              uint8_t sending_qp = get_server_qp(); // FIXME: this should come from the socket
+                              cq = cqs[sending_qp];
+                              uint8_t* local_cq_head = &(local_CQ_heads[sending_qp]);
+                              uint8_t* local_cq_SR = &(local_CQ_SRs[sending_qp]);
+                              cq->q[*local_cq_head].srq_offset = srq_o;
+                              cq->q[*local_cq_head].SR = *local_cq_SR;
+                              cq->q[*local_cq_head].sending_nid = sending_qp;
+                              DLog("Received rpc RETURN (\'g\') at rmc #%d. Send-side QP info is:\n"
+                                      "\t{ sending_qp : %d },\n"
+                                      "\t{ local_cq_head : %d },\n"
+                                      "\t{ QP[%d]->SR : %d },\n"
+                                      "\t{ local_cq_SR : %d },\n"
+                                      "\t{ CQ->SR : %d },\n",
+                                      this_nid,sending_qp,*local_cq_head,
+                                      sending_qp,cq->q[*local_cq_head].SR,
+                                      *local_cq_SR,
+                                      cq->SR);
+                              *local_cq_head += 1;
+                              if(*local_cq_head >= MAX_NUM_WQ) {
+                                  *local_cq_head = 0;
+                                  *local_cq_SR ^= 1;
+                              }
+                              break;
+                          }
+                      default:
+                        DLog("Garbage op. in stream recv. from socket.... drop it on the floor.\n");
+                  }
+              } else ; // perror("[rmc_poll] got error:\n");
+          }
       }
-#endif
-    }    
-  }
+  } // end active rmc loop
   
   soft_rmc_ctx_destroy();
   
   printf("[main] RMC deactivated\n");
-  
+
+  // free memory
+  free(wqs);
+  free(cqs);
+  free(local_WQ_tails);
+  free(local_WQ_SRs);
+  free(local_CQ_heads);
+  free(local_CQ_SRs);
+  free(compl_idx);
+  free(sinfo);
+  free(srq_buf);
   return 0;
 }
 

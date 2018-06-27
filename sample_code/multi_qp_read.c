@@ -30,7 +30,7 @@
  */
 
 /*
- *  Remote read test for libsonuma and SoftRMC
+ *  MultiQP Connection Test (within 1 app)
  */
 
 #include <vector>
@@ -44,6 +44,8 @@
 #define CTX_0 0
 #define CPU_FREQ 2.4
 
+#define MAX_QPS 64
+
 static __inline__ unsigned long long rdtsc(void)
 {
   unsigned long hi, lo;
@@ -53,23 +55,29 @@ static __inline__ unsigned long long rdtsc(void)
 
 int main(int argc, char **argv)
 {
-  rmc_wq_t *wq;
-  rmc_cq_t *cq;
+  rmc_wq_t* wqs[MAX_QPS];
+  rmc_cq_t* cqs[MAX_QPS];
 
   int num_iter = (int)ITERS;
 
-  if (argc != 3) {
-    fprintf(stdout,"Usage: ./bench_sync <target_nid> <op_type>\n"); 
+  if (argc != 5) {
+    fprintf(stdout,"Usage: ./multi_qp_read <target_nid> <op_type> <qp_id_start> <qp_id_end>\n"); 
     return 1;
   }
     
   int snid = atoi(argv[1]);
   char op = *argv[2];
+  int qp_start = atoi(argv[3]);
+  int qp_end = atoi(argv[4]);
+  if( (qp_end - qp_start + 1) > MAX_QPS ) {
+      fprintf(stdout,"---- Rqeusted too many QPs, can't do > 64.\n");
+      exit(EXIT_FAILURE);
+  }
   uint64_t ctx_size = PAGE_SIZE * PAGE_SIZE;
   uint64_t buf_size = PAGE_SIZE;
 
   uint8_t *ctx = NULL;
-  uint8_t *lbuff = NULL;
+  uint8_t* lbuff[MAX_QPS];
   uint64_t lbuff_slot;
   uint64_t ctx_offset;
   
@@ -77,17 +85,6 @@ int main(int argc, char **argv)
   if(fd < 0) {
     printf("cannot open RMC dev. driver\n");
     return -1;
-  }
-
-  char fmt[25];
-  sprintf(fmt,"local_buf_ref_%d.txt",0);
-  //register local buffer
-  if(kal_reg_lbuff(fd, &lbuff, fmt,buf_size/PAGE_SIZE) < 0) {
-    printf("Failed to allocate local buffer\n");
-    return -1;
-  } else {
-    fprintf(stdout, "Local buffer was mapped to address %p, number of pages is %ld\n",
-	    lbuff, buf_size/PAGE_SIZE);
   }
 
   //register context
@@ -99,21 +96,34 @@ int main(int argc, char **argv)
 	    ctx_size, ctx_size*sizeof(uint8_t) / PAGE_SIZE);
   }
 
-  //register WQ
-  if(kal_reg_wq(fd, &wq,0) < 0) {
-    printf("Failed to register WQ\n");
-    return -1;
-  } else {
-    fprintf(stdout, "WQ was registered.\n");
+  for(int i = qp_start; i <= qp_end; i++) {
+      //register local buffers
+      char fmt[25];
+      sprintf(fmt,"local_buf_ref_%d.txt",i);
+      lbuff[i] = NULL;
+      if(kal_reg_lbuff(fd, &(lbuff[i]), fmt, buf_size/PAGE_SIZE) < 0) {
+        printf("Failed to allocate local buffer number %i\n",i);
+        return -1;
+      } else {
+        fprintf(stdout, "Local buffer was mapped to address %p, number of pages is %ld\n",
+            lbuff[i], buf_size/PAGE_SIZE);
+      }
+      //register WQ
+      if(kal_reg_wq(fd, &(wqs[i]),i) < 0) {
+        printf("Failed to register WQ id: %d\n",i);
+        return -1;
+      } else {
+        fprintf(stdout, "WQ %d was registered.\n",i);
+      }
+
+      //register CQ
+      if(kal_reg_cq(fd, &(cqs[i]),i) < 0) {
+        printf("Failed to register CQ id: %d\n",i);
+      } else {
+        fprintf(stdout, "CQ %d was registered.\n",i);
+      }
   }
 
-  //register CQ
-  if(kal_reg_cq(fd, &cq,0) < 0) {
-    printf("Failed to register CQ\n");
-  } else {
-    fprintf(stdout, "CQ was registered.\n");
-  }
-  
   fprintf(stdout,"Init done! Will execute %d WQ operations - SYNC! (snid = %d)\n",
 	  num_iter, snid);
 
@@ -121,26 +131,28 @@ int main(int argc, char **argv)
   
   lbuff_slot = 0;
   
-  for(size_t i = 0; i < num_iter; i++) {
-    ctx_offset = (i * PAGE_SIZE) % ctx_size;
-    lbuff_slot = (i * sizeof(uint32_t)) % (PAGE_SIZE - OBJ_READ_SIZE);
+  for(int qp_id = qp_start; qp_id <= qp_end; qp_id++) {
+      for(size_t i = 0; i < num_iter; i++) {
+          ctx_offset = (i * PAGE_SIZE) % ctx_size;
+          lbuff_slot = (i * sizeof(uint32_t)) % (PAGE_SIZE - OBJ_READ_SIZE);
 
-    start = rdtsc();
+          start = rdtsc();
 
-    if(op == 'r') {
-      rmc_rread_sync(wq, cq, lbuff, lbuff_slot, snid, CTX_0, ctx_offset, OBJ_READ_SIZE);
-    } else if(op == 'w') {
-      rmc_rwrite_sync(wq, cq, lbuff, lbuff_slot, snid, CTX_0, ctx_offset, OBJ_READ_SIZE);
-    } else
-      ;
-    
-    end = rdtsc();
-    
-    if(op == 'r') {
-      printf("read this number: %u\n", ((uint32_t*)lbuff)[lbuff_slot/sizeof(uint32_t)]);
-    }
-    printf("time to execute this op: %lf ns\n", ((double)end - start)/CPU_FREQ);
-  }
- 
+          if(op == 'r') {
+              rmc_rread_sync(wqs[qp_id], cqs[qp_id], lbuff[qp_id], lbuff_slot, snid, CTX_0, ctx_offset, OBJ_READ_SIZE);
+          } else if(op == 'w') {
+              rmc_rwrite_sync(wqs[qp_id], cqs[qp_id], lbuff[qp_id], lbuff_slot, snid, CTX_0, ctx_offset, OBJ_READ_SIZE);
+          } else
+              ;
+
+          end = rdtsc();
+
+          if(op == 'r') {
+              printf("read this number: %u\n", ((uint32_t*)lbuff)[lbuff_slot/sizeof(uint32_t)]);
+          }
+          printf("time to execute this op: %lf ns\n", ((double)end - start)/CPU_FREQ);
+      } // end iters
+  }// end qps
+
   return 0;
 }

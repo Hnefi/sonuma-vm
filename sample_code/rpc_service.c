@@ -30,7 +30,8 @@
  */
 
 /*
- *  Remote read test for libsonuma and SoftRMC
+ * Msutherl:
+ *  RPC service that polls CQs, reads buffers, and sends responses.
  */
 
 #include <vector>
@@ -38,11 +39,13 @@
 
 #include "sonuma.h"
 
-#define ITERS 4096
+#define ITERS 1
 #define SLOT_SIZE 64
 #define OBJ_READ_SIZE 64
 #define CTX_0 0
 #define CPU_FREQ 2.4
+
+static uint64_t op_cnt;
 
 static __inline__ unsigned long long rdtsc(void)
 {
@@ -51,25 +54,34 @@ static __inline__ unsigned long long rdtsc(void)
   return ((unsigned long long)lo) | (((unsigned long long)hi)<<32) ;
 }
 
+void handler(uint16_t tid, char* srq, cq_entry_t *head, void *owner) {
+  printf("[rpc_handler]: Application got RPC from nid [%d] w. buf. string: %s\n",
+          tid,
+          srq + (head->srq_offset));
+  op_cnt--;
+}
+
 int main(int argc, char **argv)
 {
   rmc_wq_t *wq;
   rmc_cq_t *cq;
 
   int num_iter = (int)ITERS;
+  op_cnt = num_iter;
 
   if (argc != 3) {
-    fprintf(stdout,"Usage: ./bench_sync <target_nid> <op_type>\n"); 
+    fprintf(stdout,"Usage: ./rpc_service <this_nid> <local_qp_id>\n"); 
     return 1;
   }
     
-  int snid = atoi(argv[1]);
-  char op = *argv[2];
+  int this_nid = atoi(argv[1]);
+  int qp_id = atoi(argv[2]);
   uint64_t ctx_size = PAGE_SIZE * PAGE_SIZE;
   uint64_t buf_size = PAGE_SIZE;
 
   uint8_t *ctx = NULL;
   uint8_t *lbuff = NULL;
+  uint8_t* srq = NULL;
   uint64_t lbuff_slot;
   uint64_t ctx_offset;
   
@@ -90,6 +102,17 @@ int main(int argc, char **argv)
 	    lbuff, buf_size/PAGE_SIZE);
   }
 
+  // register SRQ
+  size_t srq_size = (MAX_RPC_BYTES+1) * MAX_NUM_WQ; // FIXME: dynamic resize later
+  size_t n_srq_pages = (srq_size / PAGE_SIZE) + 1;
+  if(kal_reg_lbuff(fd, &srq, "srq.txt" ,n_srq_pages) < 0) {
+    printf("Failed to map memory for SRQ\n");
+    return -1;
+  } else {
+    fprintf(stdout, "SRQ buffers were mapped to address %p, number of pages is %ld\n",
+	    srq, n_srq_pages);
+  }
+
   //register context
   if(kal_reg_ctx(fd, &ctx, ctx_size/PAGE_SIZE) < 0) {
     printf("Failed to allocate context\n");
@@ -100,46 +123,32 @@ int main(int argc, char **argv)
   }
 
   //register WQ
-  if(kal_reg_wq(fd, &wq,0) < 0) {
+  if(kal_reg_wq(fd, &wq,qp_id) < 0) {
     printf("Failed to register WQ\n");
     return -1;
   } else {
-    fprintf(stdout, "WQ was registered.\n");
+    fprintf(stdout, "WQ was mapped to address %p\n", wq);
   }
 
   //register CQ
-  if(kal_reg_cq(fd, &cq,0) < 0) {
+  if(kal_reg_cq(fd, &cq,qp_id) < 0) {
     printf("Failed to register CQ\n");
   } else {
-    fprintf(stdout, "CQ was registered.\n");
+    fprintf(stdout, "CQ was mapped to address %p\n", wq);
   }
   
-  fprintf(stdout,"Init done! Will execute %d WQ operations - SYNC! (snid = %d)\n",
-	  num_iter, snid);
+  fprintf(stdout,"Init done! Will receive %d CQ RPCs!  (this_nid = %d)\n",num_iter, this_nid);
 
   unsigned long long start, end;
   
   lbuff_slot = 0;
-  
-  for(size_t i = 0; i < num_iter; i++) {
-    ctx_offset = (i * PAGE_SIZE) % ctx_size;
-    lbuff_slot = (i * sizeof(uint32_t)) % (PAGE_SIZE - OBJ_READ_SIZE);
+  while( op_cnt > 0 ) {
+      printf("Loop op_count = %d\n",op_cnt);
+      uint16_t nid_ret = rmc_poll_cq_rpc(cq, (char*)srq,&handler); // handler decrements --op_cnt
+      printf("Returned from poll_cq_rpc...\n");
 
-    start = rdtsc();
-
-    if(op == 'r') {
-      rmc_rread_sync(wq, cq, lbuff, lbuff_slot, snid, CTX_0, ctx_offset, OBJ_READ_SIZE);
-    } else if(op == 'w') {
-      rmc_rwrite_sync(wq, cq, lbuff, lbuff_slot, snid, CTX_0, ctx_offset, OBJ_READ_SIZE);
-    } else
-      ;
-    
-    end = rdtsc();
-    
-    if(op == 'r') {
-      printf("read this number: %u\n", ((uint32_t*)lbuff)[lbuff_slot/sizeof(uint32_t)]);
-    }
-    printf("time to execute this op: %lf ns\n", ((double)end - start)/CPU_FREQ);
+      // enqueue receive in wq
+      rmc_recv(wq,cq,CTX_0,(char*)lbuff,lbuff_slot,(char*)srq,OBJ_READ_SIZE,nid_ret);
   }
  
   return 0;
