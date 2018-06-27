@@ -214,8 +214,8 @@ void rmc_recv(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr,int lbuff_
     wq->q[wq_head].buf_addr = (uint64_t)lbuff_ptr;
     wq->q[wq_head].buf_offset = lbuff_offset;
     wq->q[wq_head].cid = ctx_id;
-    *(lbuff_ptr + size) = 's';
-    size += 1; // 1 byte more to pass the character 's'
+    *(lbuff_ptr + size) = 'g';
+    size += 1; // 1 byte more to pass the character 'g'
 #if 0
     print_cbuf( (char*)lbuff_ptr , size );
 #endif
