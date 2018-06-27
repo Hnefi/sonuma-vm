@@ -627,7 +627,7 @@ int main(int argc, char **argv)
           while ( wq->connected == true && // poll only connected WQs;
                   (wq->q[*local_wq_tail].SR == *local_wq_SR) ) {
 
-              DLog("[main] : Processing WQ entry [%d] (local_wq_tail) from QP number %d\n",*local_wq_tail,qp_num);
+              DLog("[main] : Processing WQ entry [%d] (local_wq_tail) from QP number %d. QP->SR = %d, local_wq_SR = %d\n",*local_wq_tail,qp_num,wq->SR,*local_wq_SR);
 
 #ifdef DEBUG_PERF_RMC
               clock_gettime(CLOCK_MONOTONIC, &start_time);
@@ -786,8 +786,13 @@ int main(int argc, char **argv)
                               cq->q[*local_cq_head].SR = *local_cq_SR;
                               cq->q[*local_cq_head].sending_nid = qp_to_terminate;// FIXME: this should be the rpc server's qp
                               DLog("Received rpc SEND at rmc #%d. Receive-side QP info is:\n"
-                                      "\t{ qp_to_terminate : %d,\n"
-                                      "\t{ local_cq_head : %d,\n", this_nid, qp_to_terminate,*local_cq_head);
+                                      "\t{ qp_to_terminate : %d },\n"
+                                      "\t{ local_cq_head : %d },\n", 
+                                      "\t{ QP[%d]->SR : %d },\n", 
+                                      "\t{ local_cq_SR : %d },\n", 
+                                      "\t{ CQ->SR : %d },\n", 
+                                      this_nid, qp_to_terminate,*local_cq_head,
+                                      cq->q[*local_cq_head].SR,*local_cq_SR,cq->SR);
                           }
                           break;
                       case 'g':
@@ -799,13 +804,13 @@ int main(int argc, char **argv)
                               cq->q[*local_cq_head].SR = *local_cq_SR;
                               cq->q[*local_cq_head].sending_nid = sending_qp;
                               DLog("Received rpc RETURN (\'g\') at rmc #%d. Send-side QP info is:\n"
-                                      "\t{ sending_qp : %d,\n"
-                                      "\t{ local_cq_head : %d,\n", this_nid,sending_qp,*local_cq_head);
-                              /*
-                              wq = wqs[sending_qp];
-                              uint8_t wq_head = wq->head;
-                              wq[wq_head].valid = 0;
-                              */
+                                      "\t{ sending_qp : %d },\n"
+                                      "\t{ local_cq_head : %d },\n",
+                                      "\t{ QP[%d]->SR : %d },\n", 
+                                      "\t{ local_cq_SR : %d },\n", 
+                                      "\t{ CQ->SR : %d },\n", 
+                                      this_nid,sending_qp,*local_cq_head,
+                                      cq->q[*local_cq_head].SR,*local_cq_SR,cq->SR);
                           }
                           break;
                       default:

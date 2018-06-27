@@ -157,7 +157,7 @@ void rmc_send(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr, int lbuff
     uint8_t wq_head = wq->head;
     uint8_t cq_tail = cq->tail;
 
-    DLog("[rmc_rread_sync] rmc_send called.");
+    DLog("[rmc_send] Entering rmc_send.");
 
     while (wq->q[wq_head].valid) {} //wait for WQ head to be ready
     
@@ -187,8 +187,7 @@ void rmc_send(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr, int lbuff
     }
 
     //wait for a completion of the entry
-    while(cq->q[cq_tail].SR != cq->SR) {
-    }
+    while(cq->q[cq_tail].SR == cq->SR) { }
 
     //mark the entry as invalid, i.e. completed
     wq->q[cq->q[cq_tail].sending_nid].valid = 0;
