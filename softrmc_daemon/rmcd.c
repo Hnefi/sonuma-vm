@@ -787,8 +787,9 @@ int main(int argc, char **argv)
                               cq->q[*local_cq_head].sending_nid = qp_to_terminate;// FIXME: this should be the rpc server's qp
                               DLog("Received rpc SEND at rmc #%d. Receive-side QP info is:\n"
                                       "\t{ qp_to_terminate : %d,\n"
-                                      "\t{ local_cq_head : %d,\n", this_nid, qp_to_terminate,local_cq_head);
+                                      "\t{ local_cq_head : %d,\n", this_nid, qp_to_terminate,*local_cq_head);
                           }
+                          break;
                       case 'g':
                           {
                               uint8_t sending_qp = get_server_qp(); // FIXME: this should come from the socket
@@ -799,13 +800,14 @@ int main(int argc, char **argv)
                               cq->q[*local_cq_head].sending_nid = sending_qp;
                               DLog("Received rpc RETURN (\'g\') at rmc #%d. Send-side QP info is:\n"
                                       "\t{ sending_qp : %d,\n"
-                                      "\t{ local_cq_head : %d,\n", this_nid,sending_qp,local_cq_head);
+                                      "\t{ local_cq_head : %d,\n", this_nid,sending_qp,*local_cq_head);
                               /*
                               wq = wqs[sending_qp];
                               uint8_t wq_head = wq->head;
                               wq[wq_head].valid = 0;
                               */
                           }
+                          break;
                       default:
                         DLog("Garbage op. in stream recv. from socket.... drop it on the floor.\n");
                   }
