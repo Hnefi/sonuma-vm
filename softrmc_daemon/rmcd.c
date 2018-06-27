@@ -795,6 +795,9 @@ int main(int argc, char **argv)
                                       qp_to_terminate,cq->q[*local_cq_head].SR,
                                       *local_cq_SR,
                                       cq->SR);
+                              DLog("SHM address of QP: %p,"
+                                      " and of, cq->q: %p\n",
+                                      cq, cq->q);
                           }
                           break;
                       case 'g':
@@ -815,6 +818,9 @@ int main(int argc, char **argv)
                                       sending_qp,cq->q[*local_cq_head].SR,
                                       *local_cq_SR,
                                       cq->SR);
+                              DLog("SHM address of QP: %p,"
+                                      " and of, cq->q: %p\n",
+                                      cq, cq->q);
                           }
                           break;
                       default:
