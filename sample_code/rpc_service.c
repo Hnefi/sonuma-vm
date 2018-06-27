@@ -129,10 +129,9 @@ int main(int argc, char **argv)
   
   lbuff_slot = 0;
   while( op_cnt > 0 ) {
-    //lbuff_slot = (i * sizeof(uint32_t)) % (PAGE_SIZE - OBJ_READ_SIZE);
-
-      uint16_t nid_ret = rmc_poll_cq_rpc(cq, &handler);
-      // handler decrements --op_cnt
+      printf("Loop op_count = %d\n",op_cnt);
+      uint16_t nid_ret = rmc_poll_cq_rpc(cq, &handler); // handler decrements --op_cnt
+      printf("Returnied from poll_cq_rpc...\n");
 
       // enqueue receive in wq
       rmc_recv(wq,cq,CTX_0,(char*)lbuff,lbuff_slot,(char*)lbuff,OBJ_READ_SIZE,nid_ret);

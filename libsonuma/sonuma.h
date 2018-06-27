@@ -336,11 +336,11 @@ static inline uint16_t rmc_poll_cq_rpc(rmc_cq_t* cq, rpc_handler* theRPC)
   uint16_t retme;
   uint8_t cq_tail = cq->tail;
 
-  DLog("Polling CQ[%d].SR = %d. CQ->SR = %d\n",
+  printf("Polling CQ[%d].SR = %d. CQ->SR = %d\n",
           cq_tail, cq->q[cq_tail].SR, cq->SR);
   // wait for entry to arrive in cq
   while(cq->q[cq_tail].SR != cq->SR ) { }
-  DLog("Valid entry in CQ (index %d)! Entry SR = %c, Q. SR = %c\n",cq_tail,cq->q[cq_tail].SR,cq->SR);
+  printf("Valid entry in CQ (index %d)! Entry SR = %c, Q. SR = %c\n",cq_tail,cq->q[cq_tail].SR,cq->SR);
   // call handler and set nid for sending wq in return
   retme = cq->q[cq_tail].sending_nid;
   theRPC(retme, &(cq->q[cq_tail]), NULL);
