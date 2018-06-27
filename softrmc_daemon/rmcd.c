@@ -782,11 +782,11 @@ int main(int argc, char **argv)
                               uint8_t qp_to_terminate = get_server_qp();
                               cq = cqs[qp_to_terminate];
                               // push into the cq.
-                              uint8_t local_cq_head = local_CQ_heads[qp_to_terminate];
-                              uint8_t local_cq_SR = local_CQ_SRs[qp_to_terminate];
-                              cq->q[local_cq_head].srq_offset = srq_o;
-                              cq->q[local_cq_head].SR = local_cq_SR;
-                              cq->q[local_cq_head].sending_nid = qp_to_terminate;// FIXME: this should be the rpc server's qp
+                              uint8_t* local_cq_head = &(local_CQ_heads[qp_to_terminate]);
+                              uint8_t* local_cq_SR = &(local_CQ_SRs[qp_to_terminate]);
+                              cq->q[*local_cq_head].srq_offset = srq_o;
+                              cq->q[*local_cq_head].SR = *local_cq_SR;
+                              cq->q[*local_cq_head].sending_nid = qp_to_terminate;// FIXME: this should be the rpc server's qp
                               DLog("Received rpc SEND (\'s\') at rmc #%d. Receive-side QP info is:\n"
                                       "\t{ qp_to_terminate : %d },\n"
                                       "\t{ local_cq_head : %d },\n"
@@ -795,12 +795,17 @@ int main(int argc, char **argv)
                                       "\t{ CQ->SR : %d },\n"
                                       "\t{ srq_address : %p },\n",
                                       this_nid, qp_to_terminate,local_cq_head,
-                                      qp_to_terminate,cq->q[local_cq_head].SR,
+                                      qp_to_terminate,cq->q[*local_cq_head].SR,
                                       local_cq_SR,
                                       cq->SR,
                                       rbuf);
+                              *local_cq_head += 1;
+                              if(*local_cq_head >= MAX_NUM_WQ) {
+                                  *local_cq_head = 0;
+                                  *local_cq_SR ^= 1;
+                                  break;
+                              }
                           }
-                          break;
                       case 'g':
                           {
                               uint8_t sending_qp = get_server_qp(); // FIXME: this should come from the socket
@@ -820,6 +825,12 @@ int main(int argc, char **argv)
                                       sending_qp,cq->q[*local_cq_head].SR,
                                       *local_cq_SR,
                                       cq->SR);
+                              *local_cq_head += 1;
+                              if(*local_cq_head >= MAX_NUM_WQ) {
+                                  *local_cq_head = 0;
+                                  *local_cq_SR ^= 1;
+                                  break;
+                              }
                           }
                           break;
                       default:
