@@ -138,9 +138,9 @@ int main(int argc, char **argv)
   
   for(size_t i = 0; i < num_iter; i++) {
     ctx_offset = (i * PAGE_SIZE) % ctx_size;
-    lbuff_slot = (i * sizeof(uint32_t)) % (PAGE_SIZE - OBJ_READ_SIZE);
+    lbuff_slot = (i * (OBJ_READ_SIZE+1)) % (PAGE_SIZE - (OBJ_READ_SIZE+1)); // 64B+1 increments, wrap-around after that much
 
-    // write a string into lbuff
+    // write a test string into lbuff
     for(int o = 0; o < 12; o++) {
         *(lbuff + (lbuff_slot+o)) = tmp[o];
     }

@@ -794,9 +794,9 @@ int main(int argc, char **argv)
                                       "\t{ local_cq_SR : %d },\n"
                                       "\t{ CQ->SR : %d },\n"
                                       "\t{ srq_address : %p },\n",
-                                      this_nid, qp_to_terminate,local_cq_head,
+                                      this_nid, qp_to_terminate,*local_cq_head,
                                       qp_to_terminate,cq->q[*local_cq_head].SR,
-                                      local_cq_SR,
+                                      *local_cq_SR,
                                       cq->SR,
                                       rbuf);
                               *local_cq_head += 1;
