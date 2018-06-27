@@ -801,6 +801,7 @@ int main(int argc, char **argv)
                       case 'g':
                           {
                               uint8_t sending_qp = get_server_qp(); // FIXME: this should come from the socket
+                              cq = cqs[sending_qp];
                               uint8_t* local_cq_head = &(local_CQ_heads[sending_qp]);
                               uint8_t* local_cq_SR = &(local_CQ_SRs[sending_qp]);
                               cq->q[*local_cq_head].rpc_buf = rbuf;
