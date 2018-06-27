@@ -38,6 +38,8 @@
 
 #define MAX_NUM_WQ 64
 
+#define MAX_RPC_BYTES 2048
+
 #define KAL_REG_WQ      1
 #define KAL_UNREG_WQ    6
 #define KAL_REG_CQ      5

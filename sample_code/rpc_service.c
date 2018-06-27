@@ -79,6 +79,7 @@ int main(int argc, char **argv)
 
   uint8_t *ctx = NULL;
   uint8_t *lbuff = NULL;
+  uint8_t* srq = NULL;
   uint64_t lbuff_slot;
   uint64_t ctx_offset;
   
@@ -87,6 +88,9 @@ int main(int argc, char **argv)
     printf("cannot open RMC dev. driver\n");
     return -1;
   }
+
+
+
 
   char fmt[25];
   sprintf(fmt,"local_buf_ref_%d.txt",0);
@@ -97,6 +101,17 @@ int main(int argc, char **argv)
   } else {
     fprintf(stdout, "Local buffer was mapped to address %p, number of pages is %ld\n",
 	    lbuff, buf_size/PAGE_SIZE);
+  }
+
+  // register SRQ
+  size_t srq_size = (MAX_RPC_BYTES+1) * MAX_NUM_WQ; // FIXME: dynamic resize later
+  size_t n_srq_pages = (srq_size / PAGE_SIZE) + 1;
+  if(kal_reg_lbuff(fd, &srq, "srq.txt" ,n_srq_pages) < 0) {
+    printf("Failed to map memory for SRQ\n");
+    return -1;
+  } else {
+    fprintf(stdout, "SRQ buffers were mapped to address %p, number of pages is %ld\n",
+	    srq, n_srq_pages);
   }
 
   //register context
