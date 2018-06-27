@@ -187,7 +187,10 @@ void rmc_send(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr, int lbuff
     }
 
     //wait for a completion of the entry
+  printf("Polling CQ[%d].SR = %d. CQ->SR = %d\n",
+          cq_tail, cq->q[cq_tail].SR, cq->SR);
     while(cq->q[cq_tail].SR != cq->SR) { }
+  printf("Valid entry in CQ (index %d)! Entry SR = %d, Q. SR = %d. SRQ offset = %d\n",cq_tail,cq->q[cq_tail].SR,cq->SR,cq->q[cq_tail].srq_offset);
 
     //mark the entry as invalid, i.e. completed
     wq->q[cq->q[cq_tail].sending_nid].valid = 0;

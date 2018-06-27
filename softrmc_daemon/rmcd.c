@@ -787,7 +787,7 @@ int main(int argc, char **argv)
                               cq->q[local_cq_head].srq_offset = srq_o;
                               cq->q[local_cq_head].SR = local_cq_SR;
                               cq->q[local_cq_head].sending_nid = qp_to_terminate;// FIXME: this should be the rpc server's qp
-                              DLog("Received rpc SEND at rmc #%d. Receive-side QP info is:\n"
+                              DLog("Received rpc SEND (\'s\') at rmc #%d. Receive-side QP info is:\n"
                                       "\t{ qp_to_terminate : %d },\n"
                                       "\t{ local_cq_head : %d },\n"
                                       "\t{ QP[%d]->SR : %d },\n"
