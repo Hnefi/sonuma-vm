@@ -810,7 +810,7 @@ int main(int argc, char **argv)
                                       "\t{ local_cq_head : %d },\n"
                                       "\t{ QP[%d]->SR : %d },\n"
                                       "\t{ local_cq_SR : %d },\n"
-                                      "\t{ CQ->SR : %d },\n"
+                                      "\t{ CQ->SR : %d },\n",
                                       this_nid,sending_qp,*local_cq_head,
                                       sending_qp,cq->q[*local_cq_head].SR,
                                       *local_cq_SR,
