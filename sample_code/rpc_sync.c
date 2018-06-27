@@ -73,6 +73,7 @@ int main(int argc, char **argv)
 
   uint8_t *ctx = NULL;
   uint8_t *lbuff = NULL;
+  uint8_t *srq = NULL;
   uint64_t lbuff_slot;
   uint64_t ctx_offset;
   
@@ -91,6 +92,17 @@ int main(int argc, char **argv)
   } else {
     fprintf(stdout, "Local buffer was mapped to address %p, number of pages is %ld\n",
 	    lbuff, buf_size/PAGE_SIZE);
+  }
+
+  // register SRQ
+  size_t srq_size = (MAX_RPC_BYTES+1) * MAX_NUM_WQ; // FIXME: dynamic resize later
+  size_t n_srq_pages = (srq_size / PAGE_SIZE) + 1;
+  if(kal_reg_lbuff(fd, &srq, "srq.txt" ,n_srq_pages) < 0) {
+    printf("Failed to map memory for SRQ\n");
+    return -1;
+  } else {
+    fprintf(stdout, "SRQ buffers were mapped to address %p, number of pages is %ld\n",
+	    srq, n_srq_pages);
   }
 
   //register context
@@ -136,15 +148,10 @@ int main(int argc, char **argv)
     start = rdtsc();
 
     //rmc_rread_sync(wq, cq, lbuff, lbuff_slot, snid, CTX_0, ctx_offset, OBJ_READ_SIZE);
-    rmc_send(wq, cq, CTX_0, (char*)lbuff, lbuff_slot, (char*)lbuff, OBJ_READ_SIZE,target_nid); // FIXME: local buffer and data needed? why not 1?
+    rmc_send(wq, cq, CTX_0, (char*)lbuff, lbuff_slot, (char*)srq, OBJ_READ_SIZE,target_nid);
 
     end = rdtsc();
     
-    /*
-    if(op == 'r') {
-      printf("read this number: %u\n", ((uint32_t*)lbuff)[lbuff_slot/sizeof(uint32_t)]);
-    }
-    */
 #ifdef TIME_OPS
     printf("time to execute this op: %lf ns\n", ((double)end - start)/CPU_FREQ);
 #endif

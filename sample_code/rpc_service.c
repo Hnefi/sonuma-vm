@@ -54,8 +54,10 @@ static __inline__ unsigned long long rdtsc(void)
   return ((unsigned long long)lo) | (((unsigned long long)hi)<<32) ;
 }
 
-void handler(uint16_t tid, cq_entry_t *head, void *owner) {
-  printf("[rpc_handler]: Application got RPC from nid [%d] w. buf. string: %s\n",tid,(head->rpc_buf));
+void handler(uint16_t tid, char* srq, cq_entry_t *head, void *owner) {
+  printf("[rpc_handler]: Application got RPC from nid [%d] w. buf. string: %s\n",
+          tid,
+          srq + (head->srq_offset));
   op_cnt--;
 }
 
@@ -88,9 +90,6 @@ int main(int argc, char **argv)
     printf("cannot open RMC dev. driver\n");
     return -1;
   }
-
-
-
 
   char fmt[25];
   sprintf(fmt,"local_buf_ref_%d.txt",0);
@@ -145,11 +144,11 @@ int main(int argc, char **argv)
   lbuff_slot = 0;
   while( op_cnt > 0 ) {
       printf("Loop op_count = %d\n",op_cnt);
-      uint16_t nid_ret = rmc_poll_cq_rpc(cq, &handler); // handler decrements --op_cnt
-      printf("Returnied from poll_cq_rpc...\n");
+      uint16_t nid_ret = rmc_poll_cq_rpc(cq, (char*)srq,&handler); // handler decrements --op_cnt
+      printf("Returned from poll_cq_rpc...\n");
 
       // enqueue receive in wq
-      rmc_recv(wq,cq,CTX_0,(char*)lbuff,lbuff_slot,(char*)lbuff,OBJ_READ_SIZE,nid_ret);
+      rmc_recv(wq,cq,CTX_0,(char*)lbuff,lbuff_slot,(char*)srq,OBJ_READ_SIZE,nid_ret);
   }
  
   return 0;

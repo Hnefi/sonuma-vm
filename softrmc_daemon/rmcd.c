@@ -63,9 +63,9 @@ static int node_cnt, this_nid;
 static char* srq_buf;
 
 // Msutherl: returns offset to SRQ for RMC to place data into
-void* get_srq_ptr() {
+int get_srq_offset() {
     //TODO
-    return (void*) srq_buf;
+    return 0;
 }
 
 // Msutherl: returns qp number for RMC to terminate RMC to
@@ -763,8 +763,9 @@ int main(int argc, char **argv)
       // Msutherl: check all sockets (sinfos) for outstanding rpc
       for(i = 0; i < node_cnt; i++) {
           if( i != this_nid ) {
-              void* rbuf = get_srq_ptr();
-              int nrecvd = recv(sinfo[i].fd, (char *)rbuf, MAX_RPC_BYTES+1, MSG_DONTWAIT);
+              int srq_o = get_srq_offset();
+              char* rbuf = (char*)(srq_buf + srq_o);
+              int nrecvd = recv(sinfo[i].fd, rbuf, MAX_RPC_BYTES+1, MSG_DONTWAIT);
               if( nrecvd > 0 ) {
                   printf("[rmc_poll] got something non-zero, nbytes = %d\n",nrecvd);
                   printf("Passed buf (string interpret): %s\n",rbuf);
@@ -783,7 +784,7 @@ int main(int argc, char **argv)
                               // push into the cq.
                               uint8_t local_cq_head = local_CQ_heads[qp_to_terminate];
                               uint8_t local_cq_SR = local_CQ_SRs[qp_to_terminate];
-                              cq->q[local_cq_head].rpc_buf = rbuf;
+                              cq->q[local_cq_head].srq_offset = srq_o;
                               cq->q[local_cq_head].SR = local_cq_SR;
                               cq->q[local_cq_head].sending_nid = qp_to_terminate;// FIXME: this should be the rpc server's qp
                               DLog("Received rpc SEND at rmc #%d. Receive-side QP info is:\n"
@@ -791,11 +792,13 @@ int main(int argc, char **argv)
                                       "\t{ local_cq_head : %d },\n"
                                       "\t{ QP[%d]->SR : %d },\n"
                                       "\t{ local_cq_SR : %d },\n"
-                                      "\t{ CQ->SR : %d },\n", 
+                                      "\t{ CQ->SR : %d },\n"
+                                      "\t{ srq_address : %p },\n",
                                       this_nid, qp_to_terminate,local_cq_head,
                                       qp_to_terminate,cq->q[local_cq_head].SR,
                                       local_cq_SR,
-                                      cq->SR);
+                                      cq->SR,
+                                      rbuf);
                           }
                           break;
                       case 'g':
@@ -804,7 +807,7 @@ int main(int argc, char **argv)
                               cq = cqs[sending_qp];
                               uint8_t* local_cq_head = &(local_CQ_heads[sending_qp]);
                               uint8_t* local_cq_SR = &(local_CQ_SRs[sending_qp]);
-                              cq->q[*local_cq_head].rpc_buf = rbuf;
+                              cq->q[*local_cq_head].srq_offset = srq_o;
                               cq->q[*local_cq_head].SR = *local_cq_SR;
                               cq->q[*local_cq_head].sending_nid = sending_qp;
                               DLog("Received rpc RETURN (\'g\') at rmc #%d. Send-side QP info is:\n"

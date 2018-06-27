@@ -63,7 +63,7 @@
 #endif
 
 typedef void (async_handler)(uint8_t tid, wq_entry_t *head, void *owner);
-typedef void (rpc_handler)(uint16_t sending_nid, cq_entry_t *head, void *owner);
+typedef void (rpc_handler)(uint16_t sending_nid, char* srq, cq_entry_t *head, void *owner);
 
 #ifdef __cplusplus
 extern "C" {
@@ -331,7 +331,7 @@ static inline int rmc_drain_cq(rmc_wq_t *wq, rmc_cq_t *cq, async_handler *handle
   return 0;
 }
 
-static inline uint16_t rmc_poll_cq_rpc(rmc_cq_t* cq, rpc_handler* theRPC)
+static inline uint16_t rmc_poll_cq_rpc(rmc_cq_t* cq, char* srq, rpc_handler* theRPC)
 {
   uint16_t retme;
   uint8_t cq_tail = cq->tail;
@@ -340,10 +340,10 @@ static inline uint16_t rmc_poll_cq_rpc(rmc_cq_t* cq, rpc_handler* theRPC)
           cq_tail, cq->q[cq_tail].SR, cq->SR);
   // wait for entry to arrive in cq
   while(cq->q[cq_tail].SR != cq->SR ) { }
-  printf("Valid entry in CQ (index %d)! Entry SR = %d, Q. SR = %d\n",cq_tail,cq->q[cq_tail].SR,cq->SR);
+  printf("Valid entry in CQ (index %d)! Entry SR = %d, Q. SR = %d. SRQ offset = %d\n",cq_tail,cq->q[cq_tail].SR,cq->SR,cq->q[cq_tail].srq_offset);
   // call handler and set nid for sending wq in return
   retme = cq->q[cq_tail].sending_nid;
-  theRPC(retme, &(cq->q[cq_tail]), NULL);
+  theRPC(retme, srq, &(cq->q[cq_tail]), NULL);
 
   cq->tail = cq->tail + 1;
   //check if CQ reached its end

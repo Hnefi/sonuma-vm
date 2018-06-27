@@ -151,7 +151,7 @@ int kal_reg_ctx(int fd, uint8_t **ctx_ptr, uint32_t num_pages)
   return 0;
 }
 
-void rmc_send(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr, int lbuff_offset, char *data, int size, int snid)
+void rmc_send(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr, int lbuff_offset, char *srq, int size, int snid)
 {
     // create WQ entry, just to see if remote RMC gets it
     uint8_t wq_head = wq->head;
@@ -202,7 +202,7 @@ void rmc_send(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr, int lbuff
 }
 
 /* Msutherl: beta-implementations for send/recv. */
-void rmc_recv(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr,int lbuff_offset, char *data, int size, int snid)
+void rmc_recv(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr,int lbuff_offset, char *srq, int size, int snid)
 {
     // create WQ entry, response for arguments given to CQ
     uint8_t wq_head = wq->head;
