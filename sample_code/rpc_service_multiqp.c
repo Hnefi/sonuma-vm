@@ -39,7 +39,7 @@
 
 #include "sonuma.h"
 
-#define ITERS 1
+#define ITERS 16
 #define SLOT_SIZE 64
 #define OBJ_READ_SIZE 64
 #define CTX_0 0
@@ -151,16 +151,16 @@ int main(int argc, char **argv)
   
   lbuff_slot = 0;
   while( op_cnt > 0 ) {
-      printf("Loop op_count = %d\n",op_cnt);
       for(int qp_id = 0; qp_id <= ending_qp; qp_id++) {
           wq = wqs[qp_id];
           cq = cqs[qp_id];
           int16_t nid_ret = rmc_test_cq_rpc(cq, (char*)srq,&handler); // handler decrements --op_cnt
-          if( nid_ret > 0 ) {
-              printf("Valid node returned from test_cq_rpc, QP Num: %d...\n",qp_id);
+          if( nid_ret >= 0 ) {
+              printf("Valid entry returned from test_cq_rpc, QP Num: %d...\n",qp_id);
 
               // enqueue receive in wq
               rmc_recv(wq,cq,CTX_0,(char*)lbuff,lbuff_slot,(char*)srq,OBJ_READ_SIZE,nid_ret);
+              printf("Loop op_count = %d\n",op_cnt);
           }
       }
   }

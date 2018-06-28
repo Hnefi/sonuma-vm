@@ -39,7 +39,7 @@
 
 #include "sonuma.h"
 
-#define ITERS 1
+#define ITERS 16
 #define SLOT_SIZE 64
 #define OBJ_READ_SIZE 64
 #define CTX_0 0
