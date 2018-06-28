@@ -151,6 +151,7 @@ int kal_reg_ctx(int fd, uint8_t **ctx_ptr, uint32_t num_pages)
   return 0;
 }
 
+/* Msutherl: beta-implementations for send/recv. */
 void rmc_send(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr, int lbuff_offset, char *srq, int size, int snid)
 {
     // create WQ entry, just to see if remote RMC gets it
@@ -202,9 +203,10 @@ void rmc_send(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr, int lbuff
         cq->tail = 0;
         cq->SR ^= 1;
     }
+
+    // TODO: signal RMC that it can reuse its entry in SRQ
 }
 
-/* Msutherl: beta-implementations for send/recv. */
 void rmc_recv(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr,int lbuff_offset, char *srq, int size, int snid)
 {
     // create WQ entry, response for arguments given to CQ
@@ -237,6 +239,5 @@ void rmc_recv(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr,int lbuff_
         wq->head = 0;
         wq->SR ^= 1;
     }
-    // Msutherl: does not spin for CQ
-    // TODO: anything else here??
+    // TODO: signal RMC that it can reuse SRQ entry
 }

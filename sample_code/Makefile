@@ -35,8 +35,8 @@ CC    = g++
 CFLAGS	+= -I$(LIBSONUMA_PATH)
 LDFLAGS	= -L$(LIBSONUMA_PATH) -Wl,-rpath,$(LIBSONUMA_PATH) -lsonuma -lrt
 
-TARGETS  = bench_sync bench_async bench_server multi_qp_read rpc_sync rpc_service
-SOURCES = bench_sync.c bench_server.c bench_async.c multi_qp_read.c
+TARGETS  = bench_sync bench_async bench_server multi_qp_read rpc_sync rpc_service rpc_service_multiqp
+SOURCES = bench_sync.c bench_server.c bench_async.c multi_qp_read.c rpc_sync.c rpc_service.c rpc_service_multiqp.c
 OBJECTS = $(SOURCES:.c=.o)
 
 TARGETSYNC = bench_sync
@@ -50,6 +50,10 @@ RPC_OBJS = $(RPC_SOURCES:.c=.o)
 SERV_TARG = rpc_service 
 SERV_SOURCES = rpc_service.c
 SERV_OBJS = $(SERV_SOURCES:.c=.o)
+
+MULTI_TARG = rpc_service_multiqp
+MULTI_SOURCES = rpc_service_multiqp.c
+MULTI_OBJS = $(MULTI_SOURCES:.c=.o)
 
 TARGET1  = bench_server
 
@@ -101,5 +105,10 @@ $(SERV_TARG): $(SERV_OBJS)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) 
 	cp ./$@ ../bin/
 
+$(MULTI_TARG): $(MULTI_OBJS)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) 
+	cp ./$@ ../bin/
+
 clean:
 	-${RM} ${TARGETS} ${OBJECTS} $(SRCS:.c=.o)
+

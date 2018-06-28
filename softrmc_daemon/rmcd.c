@@ -62,17 +62,47 @@ static int node_cnt, this_nid;
 // rpc recv. buffer
 static char* srq_buf;
 
+int count_valid_cq_entries(volatile rmc_cq_t* cq, int8_t local_cq_head)
+{
+    int tailIdx = cq->tail;
+    int retCount = 0;
+    while(cq->q[local_cq_head].SR == cq->SR
+            && ( local_cq_head != tailIdx ) ) { // valid, hasn't over-run tail
+        retCount++;
+        local_cq_head--; // moves backwards to count towards the tail
+        // check if WQ reached its end
+        if (local_cq_head < 0 ) {
+            local_cq_head = MAX_NUM_WQ-1;
+        }
+    }
+    assert( retCount <= MAX_NUM_WQ );
+    return retCount;
+}
+
 // Msutherl: returns offset to SRQ for RMC to place data into
 int get_srq_offset() {
     //TODO
     return 0;
 }
 
-// Msutherl: returns qp number for RMC to terminate RMC to
-uint8_t get_server_qp()
+// Msutherl: returns qp number for RMC on server-side to terminate msg. into
+// - default policy, shortest queue depth
+uint8_t get_server_qp(volatile rmc_cq_t** cqs,uint8_t* local_cq_heads, int num_qps)
 {
-    //TODO
-    return 0;
+    unsigned minimum_outstanding_entries = MAX_NUM_WQ; // whole QP
+    unsigned shortest_cq = 0;
+    volatile rmc_cq_t* cq = NULL;
+    for(int i = 0; i < num_qps;i++) {
+        cq = cqs[i];
+        if( cq->connected ) {
+            unsigned nvalid = count_valid_cq_entries(cq,local_cq_heads[i]);
+            if( nvalid < minimum_outstanding_entries ) {
+                shortest_cq  = i;
+                minimum_outstanding_entries = nvalid;
+            }
+        }
+    }
+    return shortest_cq;
 }
 
 void print_cbuf(char* buf, size_t len)
@@ -779,7 +809,7 @@ int main(int argc, char **argv)
                   switch( dmux ) {
                       case 's':
                           {
-                              uint8_t qp_to_terminate = get_server_qp();
+                              uint8_t qp_to_terminate = get_server_qp(cqs,local_CQ_heads,num_qps);
                               cq = cqs[qp_to_terminate];
                               // push into the cq.
                               uint8_t* local_cq_head = &(local_CQ_heads[qp_to_terminate]);
@@ -808,7 +838,7 @@ int main(int argc, char **argv)
                           }
                       case 'g':
                           {
-                              uint8_t sending_qp = get_server_qp(); // FIXME: this should come from the socket
+                              uint8_t sending_qp = 0; // FIXME: always 0 on sender for now
                               cq = cqs[sending_qp];
                               uint8_t* local_cq_head = &(local_CQ_heads[sending_qp]);
                               uint8_t* local_cq_SR = &(local_CQ_SRs[sending_qp]);
