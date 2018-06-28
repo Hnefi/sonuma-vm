@@ -355,6 +355,30 @@ static inline uint16_t rmc_poll_cq_rpc(rmc_cq_t* cq, char* srq, rpc_handler* the
   return retme;
 }
 
+static inline int16_t rmc_test_cq_rpc(rmc_cq_t* cq, char* srq, rpc_handler* theRPC)
+{
+  int16_t retme;
+  uint8_t cq_tail = cq->tail;
+
+  // wait for entry to arrive in cq
+  if(cq->q[cq_tail].SR == cq->SR ) { 
+      printf("Valid entry in CQ (index %d)! Entry SR = %d, Q. SR = %d. SRQ offset = %d\n",cq_tail,cq->q[cq_tail].SR,cq->SR,cq->q[cq_tail].srq_offset);
+      // call handler and set nid for sending wq in return
+      retme = cq->q[cq_tail].sending_nid;
+      theRPC(retme, srq, &(cq->q[cq_tail]), NULL);
+
+      cq->tail = cq->tail + 1;
+      //check if CQ reached its end
+      if (cq->tail >= MAX_NUM_WQ) {
+          cq->tail = 0;
+          cq->SR ^= 1;
+      }
+      cq_tail = cq->tail;
+      return retme;
+  } else
+      return -1;
+}
+
 #ifdef __cplusplus
 }
 #endif
