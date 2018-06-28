@@ -45,6 +45,8 @@
 #define CTX_0 0
 #define CPU_FREQ 2.4
 
+#define MAX_QPS 4
+
 static uint64_t op_cnt;
 
 static __inline__ unsigned long long rdtsc(void)
@@ -63,6 +65,8 @@ void handler(uint16_t tid, char* srq, cq_entry_t *head, void *owner) {
 
 int main(int argc, char **argv)
 {
+  rmc_wq_t* wqs[MAX_QPS];
+  rmc_cq_t* cqs[MAX_QPS];
   rmc_wq_t *wq;
   rmc_cq_t *cq;
 
@@ -70,17 +74,17 @@ int main(int argc, char **argv)
   op_cnt = num_iter;
 
   if (argc != 3) {
-    fprintf(stdout,"Usage: ./rpc_service <this_nid> <local_qp_id>\n"); 
+    fprintf(stdout,"Usage: ./rpc_service <this_nid> <end_qp_id>\n"); 
     return 1;
   }
     
   int this_nid = atoi(argv[1]);
-  int qp_id = atoi(argv[2]);
+  int ending_qp = atoi(argv[2]);
   uint64_t ctx_size = PAGE_SIZE * PAGE_SIZE;
   uint64_t buf_size = PAGE_SIZE;
 
   uint8_t *ctx = NULL;
-  uint8_t *lbuff = NULL;
+  uint8_t* lbuff[MAX_QPS];
   uint8_t* srq = NULL;
   uint64_t lbuff_slot;
   uint64_t ctx_offset;
@@ -89,17 +93,6 @@ int main(int argc, char **argv)
   if(fd < 0) {
     printf("cannot open RMC dev. driver\n");
     return -1;
-  }
-
-  char fmt[25];
-  sprintf(fmt,"local_buf_ref_%d.txt",0);
-  //register local buffer
-  if(kal_reg_lbuff(fd, &lbuff, fmt,buf_size/PAGE_SIZE) < 0) {
-    printf("Failed to allocate local buffer\n");
-    return -1;
-  } else {
-    fprintf(stdout, "Local buffer was mapped to address %p, number of pages is %ld\n",
-	    lbuff, buf_size/PAGE_SIZE);
   }
 
   // register SRQ
@@ -122,19 +115,34 @@ int main(int argc, char **argv)
 	    ctx_size, ctx_size*sizeof(uint8_t) / PAGE_SIZE);
   }
 
-  //register WQ
-  if(kal_reg_wq(fd, &wq,qp_id) < 0) {
-    printf("Failed to register WQ\n");
-    return -1;
-  } else {
-    fprintf(stdout, "WQ was mapped to address %p\n", wq);
-  }
+  for(int qp_id = 0; qp_id <= ending_qp; qp_id++) {
+      char fmt[25];
+      sprintf(fmt,"local_buf_ref_%d.txt",qp_id);
+      //register local buffer
+      lbuff[qp_id] = NULL;
+      if(kal_reg_lbuff(fd, &(lbuff[qp_id]), fmt,buf_size/PAGE_SIZE) < 0) {
+        printf("Failed to allocate local buffer\n");
+        return -1;
+      } else {
+        fprintf(stdout, "Local buffer was mapped to address %p, number of pages is %ld\n",
+            lbuff[qp_id], buf_size/PAGE_SIZE);
+      }
 
-  //register CQ
-  if(kal_reg_cq(fd, &cq,qp_id) < 0) {
-    printf("Failed to register CQ\n");
-  } else {
-    fprintf(stdout, "CQ was mapped to address %p\n", wq);
+
+      //register WQ
+      if(kal_reg_wq(fd, &(wqs[qp_id]),qp_id) < 0) {
+        printf("Failed to register WQ\n");
+        return -1;
+      } else {
+        fprintf(stdout, "WQ was mapped to address %p\n", wqs[qp_id]);
+      }
+
+      //register CQ
+      if(kal_reg_cq(fd, &(cqs[qp_id]),qp_id) < 0) {
+        printf("Failed to register CQ\n");
+      } else {
+        fprintf(stdout, "CQ was mapped to address %p\n", cqs[qp_id]);
+      }
   }
   
   fprintf(stdout,"Init done! Will receive %d CQ RPCs!  (this_nid = %d)\n",num_iter, this_nid);
