@@ -105,6 +105,9 @@ uint8_t get_server_qp(volatile rmc_cq_t** cqs,uint8_t* local_cq_heads, int num_q
     return shortest_cq;
 }
 
+static uint8_t qp_rr = 0;
+uint8_t get_server_qp_rrobin() { return (qp_rr++) % 3; }
+
 void print_cbuf(char* buf, size_t len)
 {
     for(int i = 0; i < len;i++) {
@@ -809,7 +812,8 @@ int main(int argc, char **argv)
                   switch( dmux ) {
                       case 's':
                           {
-                              uint8_t qp_to_terminate = get_server_qp(cqs,local_CQ_heads,num_qps);
+                              //uint8_t qp_to_terminate = get_server_qp(cqs,local_CQ_heads,num_qps);
+                              uint8_t qp_to_terminate = get_server_qp_rrobin();
                               cq = cqs[qp_to_terminate];
                               // push into the cq.
                               uint8_t* local_cq_head = &(local_CQ_heads[qp_to_terminate]);
