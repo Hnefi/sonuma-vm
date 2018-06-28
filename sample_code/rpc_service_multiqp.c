@@ -152,11 +152,15 @@ int main(int argc, char **argv)
   lbuff_slot = 0;
   while( op_cnt > 0 ) {
       printf("Loop op_count = %d\n",op_cnt);
-      uint16_t nid_ret = rmc_poll_cq_rpc(cq, (char*)srq,&handler); // handler decrements --op_cnt
-      printf("Returned from poll_cq_rpc...\n");
+      for(int qp_id = 0; qp_id <= ending_qp; qp_id++) {
+          wq = wqs[qp_id];
+          cq = cqs[qp_id];
+          uint16_t nid_ret = rmc_poll_cq_rpc(cq, (char*)srq,&handler); // handler decrements --op_cnt
+          printf("Returned from poll_cq_rpc, QP Num: %d...\n",qp_id);
 
-      // enqueue receive in wq
-      rmc_recv(wq,cq,CTX_0,(char*)lbuff,lbuff_slot,(char*)srq,OBJ_READ_SIZE,nid_ret);
+          // enqueue receive in wq
+          rmc_recv(wq,cq,CTX_0,(char*)lbuff,lbuff_slot,(char*)srq,OBJ_READ_SIZE,nid_ret);
+      }
   }
  
   return 0;
