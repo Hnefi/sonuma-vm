@@ -18,4 +18,5 @@ softrmc_driver/Module.symvers
 softrmc_driver/modules.order
 softrmc_daemon/rmcd
 *.txt
+*.bak
 tags

@@ -14,6 +14,7 @@ mv servers.txt servers.bak
 echo "Creating new guests..."
 declare -a IPS
 FILES=$(ls $BOOT_CFG_DIR/*_boot.cfg)
+COUNT=0
 for i in $FILES; do 
     #echo "create $i"; 
     xl create $i;
@@ -21,7 +22,8 @@ for i in $FILES; do
     IPS+=($IP_OF_GUEST);
     NAME_OF_GUEST=$(sed -rn 's#^name\s*=\s*\"(\w+\d*)\"#\1#p' < $i);
     DOMID_OF_GUEST=$(xl domid $NAME_OF_GUEST);
-    echo "$IP_OF_GUEST:$DOMID_OF_GUEST" >> servers.txt;
+    echo "$COUNT:$IP_OF_GUEST:$DOMID_OF_GUEST" >> servers.txt;
+    $COUNT+=1
 done
 
 sleep 30

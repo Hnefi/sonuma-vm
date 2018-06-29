@@ -352,7 +352,7 @@ static inline void rmc_poll_cq_rpc(rmc_cq_t* cq, char* srq, rpc_handler* theRPC,
   }
 }
 
-static inline void rmc_test_cq_rpc(rmc_cq_t* cq, char* srq, rpc_handler* theRPC,uint8_t* sending_nid, uint8_t* sending_qp)
+static inline void rmc_test_cq_rpc(rmc_cq_t* cq, char* srq, rpc_handler* theRPC,int* sending_nid, int* sending_qp)
 {
   uint8_t cq_tail = cq->tail;
 

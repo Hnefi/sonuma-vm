@@ -151,7 +151,7 @@ int main(int argc, char **argv)
   
   lbuff_slot = 0;
   while( op_cnt > 0 ) {
-      uint8_t sending_qp = 0, sending_nid = 0;
+      int sending_qp = 0, sending_nid = 0;
       for(int qp_id = 0; qp_id <= ending_qp; qp_id++) {
           wq = wqs[qp_id];
           cq = cqs[qp_id];
