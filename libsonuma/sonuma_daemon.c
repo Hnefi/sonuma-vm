@@ -152,7 +152,7 @@ int kal_reg_ctx(int fd, uint8_t **ctx_ptr, uint32_t num_pages)
 }
 
 /* Msutherl: beta-implementations for send/recv. */
-void rmc_send(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr, int lbuff_offset, char *srq, int size, int snid)
+void rmc_send(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr, int lbuff_offset, char *srq, int size, int snid,uint8_t sending_qp)
 {
     // create WQ entry, just to see if remote RMC gets it
     uint8_t wq_head = wq->head;
@@ -167,7 +167,8 @@ void rmc_send(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr, int lbuff
     wq->q[wq_head].cid = ctx_id;
     //wq->q[wq_head].offset = ctx_offset;
     *(lbuff_ptr + (lbuff_offset+size)) = 's';
-    size += 1; // 1 byte more to pass the character 's'
+    *(lbuff_ptr + (lbuff_offset+size+1)) = sending_qp;
+    size += 2; // 2 bytes more to pass the character 's' and sender's QP
 #if 0
     print_cbuf( (char*)lbuff_ptr , size );
 #endif
@@ -194,7 +195,8 @@ void rmc_send(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr, int lbuff
   printf("Valid entry in CQ (index %d)! Entry SR = %d, Q. SR = %d. SRQ offset = %d\n",cq_tail,cq->q[cq_tail].SR,cq->SR,cq->q[cq_tail].srq_offset);
 
     //mark the entry as invalid, i.e. completed
-    wq->q[cq->q[cq_tail].sending_nid].valid = 0;
+    wq->q[cq->q[cq_tail].tid].valid = 0;
+        // re-use the tid field for sending_qp
 
     cq->tail = cq->tail + 1;
 
@@ -203,11 +205,9 @@ void rmc_send(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr, int lbuff
         cq->tail = 0;
         cq->SR ^= 1;
     }
-
-    // TODO: signal RMC that it can reuse its entry in SRQ
 }
 
-void rmc_recv(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr,int lbuff_offset, char *srq, int size, int snid)
+void rmc_recv(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr,int lbuff_offset, char *srq, int size, int snid,uint8_t sending_qp)
 {
     // create WQ entry, response for arguments given to CQ
     uint8_t wq_head = wq->head;
@@ -220,7 +220,8 @@ void rmc_recv(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr,int lbuff_
     wq->q[wq_head].buf_offset = lbuff_offset;
     wq->q[wq_head].cid = ctx_id;
     *(lbuff_ptr + (lbuff_offset+size)) = 'g';
-    size += 1; // 1 byte more to pass the character 'g'
+    *(lbuff_ptr + (lbuff_offset+size+1)) = sending_qp;
+    size += 2; // 2 bytes more to pass the character 'g' and send qp id
 #if 0
     print_cbuf( (char*)lbuff_ptr , size );
 #endif

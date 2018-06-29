@@ -95,7 +95,7 @@ int main(int argc, char **argv)
   }
 
   // register SRQ
-  size_t srq_size = (MAX_RPC_BYTES+1) * MAX_NUM_WQ; // FIXME: dynamic resize later
+  size_t srq_size = (MAX_RPC_BYTES+2) * MAX_NUM_WQ; // FIXME: dynamic resize later
   size_t n_srq_pages = (srq_size / PAGE_SIZE) + 1;
   if(kal_reg_lbuff(fd, &srq, "srq.txt" ,n_srq_pages) < 0) {
     printf("Failed to map memory for SRQ\n");
@@ -138,7 +138,7 @@ int main(int argc, char **argv)
   
   for(size_t i = 0; i < num_iter; i++) {
     ctx_offset = (i * PAGE_SIZE) % ctx_size;
-    lbuff_slot = (i * (OBJ_READ_SIZE+1)) % (PAGE_SIZE - (OBJ_READ_SIZE+1)); // 64B+1 increments, wrap-around after that much
+    lbuff_slot = (i * (OBJ_READ_SIZE+2)) % (PAGE_SIZE - (OBJ_READ_SIZE+2)); // 64B+1 increments, wrap-around after that much
 
     // write a test string into lbuff
     for(int o = 0; o < 12; o++) {
@@ -148,7 +148,7 @@ int main(int argc, char **argv)
     start = rdtsc();
 
     //rmc_rread_sync(wq, cq, lbuff, lbuff_slot, snid, CTX_0, ctx_offset, OBJ_READ_SIZE);
-    rmc_send(wq, cq, CTX_0, (char*)lbuff, lbuff_slot, (char*)srq, OBJ_READ_SIZE,target_nid);
+    rmc_send(wq, cq, CTX_0, (char*)lbuff, lbuff_slot, (char*)srq, OBJ_READ_SIZE,target_nid,qp_id);
 
     end = rdtsc();
     

@@ -129,7 +129,7 @@ int main(int argc, char **argv)
     rmc_check_cq(wq, cq, &handler, NULL);            
 
     if(op == 'r') {
-      rmc_send(wq, cq, CTX_0, (char*)lbuff, lbuff_slot, (char*)lbuff, OBJ_READ_SIZE,snid); // FIXME: local buffer and data needed? why not 1?
+      rmc_rread_async(wq, lbuff, lbuff_slot, snid, CTX_0, ctx_offset, OBJ_READ_SIZE);
     } else if(op == 'w') {
       rmc_rwrite_async(wq, lbuff, lbuff_slot, snid, CTX_0, ctx_offset, OBJ_READ_SIZE);
     } else

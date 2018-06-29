@@ -605,7 +605,7 @@ int main(int argc, char **argv)
       local_buf_alloc(&local_buffers[i],fmt,1);
   }
 
-  size_t srq_size = (MAX_RPC_BYTES+1) * MIN_RPCBUF_ENTRIES;
+  size_t srq_size = (MAX_RPC_BYTES+2) * MIN_RPCBUF_ENTRIES;
   size_t n_srq_pages = (srq_size / PAGE_SIZE) + 1;
   local_buf_alloc(&srq_buf,"srq.txt",n_srq_pages);
 
@@ -798,13 +798,14 @@ int main(int argc, char **argv)
           if( i != this_nid ) {
               int srq_o = get_srq_offset();
               char* rbuf = (char*)(srq_buf + srq_o);
-              int nrecvd = recv(sinfo[i].fd, rbuf, MAX_RPC_BYTES+1, MSG_DONTWAIT);
+              int nrecvd = recv(sinfo[i].fd, rbuf, MAX_RPC_BYTES+2, MSG_DONTWAIT);
               if( nrecvd > 0 ) {
                   printf("[rmc_poll] got something non-zero, nbytes = %d\n",nrecvd);
                   printf("Passed buf (string interpret): %s\n",rbuf);
                   // check whether it's an rpc send, or recv to already sent rpc
                   int offset = nrecvd;
                   char dmux = *((char*)rbuf + offset-1);
+                  uint8_t sending_qp = *((uint8_t*)rbuf + offset);
 #if 0
                   DLog("Printing RPC Buffer after receive.\n");
                   print_cbuf( (char*)rbuf, nrecvd );
@@ -820,18 +821,21 @@ int main(int argc, char **argv)
                               uint8_t* local_cq_SR = &(local_CQ_SRs[qp_to_terminate]);
                               cq->q[*local_cq_head].srq_offset = srq_o;
                               cq->q[*local_cq_head].SR = *local_cq_SR;
-                              cq->q[*local_cq_head].sending_nid = qp_to_terminate;// FIXME: this should be the rpc server's qp
+                              cq->q[*local_cq_head].sending_nid = i;
+                              cq->q[*local_cq_head].tid = sending_qp;
                               DLog("Received rpc SEND (\'s\') at rmc #%d. Receive-side QP info is:\n"
                                       "\t{ qp_to_terminate : %d },\n"
                                       "\t{ local_cq_head : %d },\n"
                                       "\t{ QP[%d]->SR : %d },\n"
                                       "\t{ local_cq_SR : %d },\n"
                                       "\t{ CQ->SR : %d },\n"
+                                      "\t{ sender's QP : %d },\n"
                                       "\t{ srq_address : %p },\n",
                                       this_nid, qp_to_terminate,*local_cq_head,
                                       qp_to_terminate,cq->q[*local_cq_head].SR,
                                       *local_cq_SR,
                                       cq->SR,
+                                      sending_qp,
                                       rbuf);
                               *local_cq_head += 1;
                               if(*local_cq_head >= MAX_NUM_WQ) {

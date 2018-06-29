@@ -151,15 +151,16 @@ int main(int argc, char **argv)
   
   lbuff_slot = 0;
   while( op_cnt > 0 ) {
+      uint8_t sending_qp = 0, sending_nid = 0;
       for(int qp_id = 0; qp_id <= ending_qp; qp_id++) {
           wq = wqs[qp_id];
           cq = cqs[qp_id];
-          int16_t nid_ret = rmc_test_cq_rpc(cq, (char*)srq,&handler); // handler decrements --op_cnt
-          if( nid_ret >= 0 ) {
+          rmc_test_cq_rpc(cq, (char*)srq,&handler,&sending_nid,&sending_qp); // handler decrements --op_cnt
+          if( sending_nid >= 0 ) {
               printf("Valid entry returned from test_cq_rpc, QP Num: %d...\n",qp_id);
 
               // enqueue receive in wq
-              rmc_recv(wq,cq,CTX_0,(char*)lbuff[qp_id],lbuff_slot,(char*)srq,OBJ_READ_SIZE,nid_ret);
+              rmc_recv(wq,cq,CTX_0,(char*)lbuff[qp_id],lbuff_slot,(char*)srq,OBJ_READ_SIZE,sending_nid,sending_qp);
               printf("Loop op_count = %d\n",op_cnt);
           }
       }
