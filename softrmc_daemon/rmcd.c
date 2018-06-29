@@ -803,9 +803,9 @@ int main(int argc, char **argv)
                   printf("[rmc_poll] got something non-zero, nbytes = %d\n",nrecvd);
                   printf("Passed buf (string interpret): %s\n",rbuf);
                   // check whether it's an rpc send, or recv to already sent rpc
-                  int offset = nrecvd;
-                  char dmux = *((char*)rbuf + offset-1);
-                  uint8_t sending_qp = *((uint8_t*)rbuf + offset);
+                  int footer_offset = nrecvd-2;
+                  char dmux = *((char*)rbuf + footer_offset);
+                  uint8_t sending_qp = *((uint8_t*)rbuf + footer_offset+1);
 #ifdef DEBUG_RMC
                   DLog("Printing RPC Buffer after receive.\n");
                   print_cbuf( (char*)rbuf, nrecvd );
