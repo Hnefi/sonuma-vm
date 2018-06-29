@@ -806,7 +806,7 @@ int main(int argc, char **argv)
                   int offset = nrecvd;
                   char dmux = *((char*)rbuf + offset-1);
                   uint8_t sending_qp = *((uint8_t*)rbuf + offset);
-#if 0
+#ifdef DEBUG_RMC
                   DLog("Printing RPC Buffer after receive.\n");
                   print_cbuf( (char*)rbuf, nrecvd );
 #endif
