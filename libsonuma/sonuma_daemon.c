@@ -151,24 +151,26 @@ int kal_reg_ctx(int fd, uint8_t **ctx_ptr, uint32_t num_pages)
   return 0;
 }
 
-/* Msutherl: beta-implementations for send/recv. */
-void rmc_send(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr, int lbuff_offset, char *srq, int size, int snid,uint8_t sending_qp)
+/* Msutherl: New version of rmc_send, using paired send/recv slots */
+void rmc_send(rmc_wq_t *wq, char *lbuff_ptr, int lbuff_offset, size_t size, int snid, uint8_t sending_qp, send_slot_t* send_slot,uint8_t slot_idx)
 {
-    // create WQ entry, just to see if remote RMC gets it
     uint8_t wq_head = wq->head;
-    uint8_t cq_tail = cq->tail;
-
     DLog("[rmc_send] Entering rmc_send.");
+
+    // setup send slot for RMC
+    send_slot->valid = true;
+    send_slot->msg_size = size;
+    send_slot->sending_qp = sending_qp;
 
     while (wq->q[wq_head].valid) {} //wait for WQ head to be ready
     
+    send_slot->wq_entry_idx = wq_head;
     wq->q[wq_head].buf_addr = (uint64_t)lbuff_ptr;
     wq->q[wq_head].buf_offset = lbuff_offset;
-    wq->q[wq_head].cid = ctx_id;
-    //wq->q[wq_head].offset = ctx_offset;
     *(lbuff_ptr + (lbuff_offset+size)) = 's';
     *(lbuff_ptr + (lbuff_offset+size+1)) = sending_qp;
-    size += 2; // 2 bytes more to pass the character 's' and sender's QP
+    *(lbuff_ptr + (lbuff_offset+size+2)) = slot_idx;
+    size += 3; // 3 bytes more to pass the character 's', send QP, and send slot id
 #ifdef PRINT_BUFS
     print_cbuf( (char*)lbuff_ptr , size );
 #endif
@@ -176,38 +178,18 @@ void rmc_send(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr, int lbuff
     else wq->q[wq_head].length = size;
     wq->q[wq_head].op = 's';
     wq->q[wq_head].nid = snid;
-
     wq->q[wq_head].valid = 1;
     wq->q[wq_head].SR = wq->SR;
 
     wq->head =  wq->head + 1;
-
     //check if WQ reached its end
     if (wq->head >= MAX_NUM_WQ) {
         wq->head = 0;
         wq->SR ^= 1;
     }
-
-    //wait for a completion of the entry
-  printf("Polling CQ[%d].SR = %d. CQ->SR = %d\n",
-          cq_tail, cq->q[cq_tail].SR, cq->SR);
-    while(cq->q[cq_tail].SR != cq->SR) { }
-  printf("Valid entry in CQ (index %d)! Entry SR = %d, Q. SR = %d. SRQ offset = %d\n",cq_tail,cq->q[cq_tail].SR,cq->SR,cq->q[cq_tail].srq_offset);
-
-    //mark the entry as invalid, i.e. completed
-    wq->q[cq->q[cq_tail].tid].valid = 0;
-        // re-use the tid field for sending_qp
-
-    cq->tail = cq->tail + 1;
-
-    //check if WQ reached its end
-    if (cq->tail >= MAX_NUM_WQ) {
-        cq->tail = 0;
-        cq->SR ^= 1;
-    }
 }
 
-void rmc_recv(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr,int lbuff_offset, char *srq, int size, int snid,unsigned sending_qp,unsigned srq_entry_reuse)
+void rmc_recv(rmc_wq_t *wq, char* lbuff_ptr,int lbuff_offset,size_t size,int snid,unsigned sending_qp,unsigned slot_idx)
 {
     // create WQ entry, response for arguments given to CQ
     uint8_t wq_head = wq->head;
@@ -216,12 +198,10 @@ void rmc_recv(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr,int lbuff_
 
     while (wq->q[wq_head].valid) {} //wait for WQ head to be ready
     
-    wq->q[wq_head].buf_addr = (uint64_t)lbuff_ptr;
-    wq->q[wq_head].buf_offset = lbuff_offset;
-    wq->q[wq_head].cid = ctx_id;
     *(lbuff_ptr + (lbuff_offset+size)) = 'g';
     *(lbuff_ptr + (lbuff_offset+size+1)) = sending_qp;
-    size += 2; // 2 bytes more to pass the character 'g' and send qp id
+    *(lbuff_ptr + (lbuff_offset+size+2)) = slot_idx;
+    size += 3; // 3 bytes more to pass the character 'g' , send qp id, send slot to reuse
 #ifdef PRINT_BUFS
     print_cbuf( (char*)lbuff_ptr , size );
 #endif
@@ -232,7 +212,7 @@ void rmc_recv(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr,int lbuff_
 
     wq->q[wq_head].valid = 1;
     wq->q[wq_head].SR = wq->SR;
-    wq->q[wq_head].srq_entry_free = srq_entry_reuse;
+    wq->q[wq_head].slot_idx = slot_idx;
         // signal RMC to reuse this slot
 
     wq->head =  wq->head + 1;

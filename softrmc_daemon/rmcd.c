@@ -60,10 +60,13 @@ static char *ctx[MAX_NODE_CNT];
 
 static int node_cnt, this_nid;
 
-// rpc recv. buffer
-static char* srq_buf;
+// rpc messaging domain data
+static char* recv_slots[MAX_NODE_CNT];
+static char* sslots[MAX_NODE_CNT];
+static char* avail_slots[MAX_NODE_CNT];
 
-static std::bitset<MIN_RPCBUF_ENTRIES> occupied_srq_entries;
+#define MIN_RPCBUF_ENTRIES 16
+static std::bitset<16> occupied_srq_entries; // FIXME: remove
 
 int count_valid_cq_entries(volatile rmc_cq_t* cq, int8_t local_cq_head)
 {
@@ -588,6 +591,9 @@ int main(int argc, char **argv)
   //local buffer
   char **local_buffers;
 
+  // temporary copy buffers
+  char** tmp_copies;
+
   if(argc != 4) {
     printf("[main] incorrect number of arguments\n"
             "Usage: ./rmcd <Num. soNUMA Nodes> <ID of this node> <Num QPs to expose>\n");
@@ -602,7 +608,7 @@ int main(int argc, char **argv)
   cqs = (volatile rmc_cq_t**) calloc(num_qps,sizeof(rmc_cq_t*));
   local_buffers = (char**) calloc(num_qps,sizeof(char*));
 
-  //allocate a queue pair
+  //allocate a queue pair, arg bufs
   for(int i = 0; i < num_qps; i++) {
       alloc_wq((rmc_wq_t **)&wqs[i],i);
       alloc_cq((rmc_cq_t **)&cqs[i],i);
@@ -612,9 +618,34 @@ int main(int argc, char **argv)
       local_buf_alloc(&local_buffers[i],fmt,1);
   }
 
-  size_t srq_size = (MAX_RPC_BYTES+2) * MIN_RPCBUF_ENTRIES;
-  size_t n_srq_pages = (srq_size / PAGE_SIZE) + 1;
-  local_buf_alloc(&srq_buf,"srq.txt",n_srq_pages);
+  // allocate messaging domain metadata
+  tmp_copies = (char**) calloc(node_cnt,sizeof(char*));
+  size_t recv_buffer_size = (MAX_RPC_BYTES ) * MSGS_PER_PAIR ;
+  size_t n_rbuf_pages = (recv_buffer_size / PAGE_SIZE) + 1;
+
+  size_t send_slots_size = MSGS_PER_PAIR * sizeof(send_slot_t);
+  size_t n_sslots_pages = (send_slots_size / PAGE_SIZE) + 1;
+
+  size_t avail_slots_size = MSGS_PER_PAIR * sizeof(send_metadata_t);
+  size_t n_avail_slots_pages = (avail_slots_size / PAGE_SIZE) + 1;
+  for(int i = 0; i < node_cnt; i++ ) {
+      char fmt[20];
+      sprintf(fmt,"rqueue_node_%d.txt",i);
+      local_buf_alloc(&recv_slots[i],fmt,n_rbuf_pages);
+      sprintf(fmt,"send_slots_%d.txt",i);
+      local_buf_alloc(&sslots[i],fmt,n_sslots_pages);
+      sprintf(fmt,"avail_slots_%d.txt",i);
+      local_buf_alloc(&avail_slots[i],fmt,n_avail_slots_pages);
+      // for every node pair, init send slots metadata
+      send_metadata_t* nodetmp = (send_metadata_t*) avail_slots[i];
+      for(int tmp = 0; tmp < MSGS_PER_PAIR; tmp++) {
+          nodetmp[i].valid = true;
+          nodetmp[i].sslot_index = tmp;
+      }
+
+      // make a tmp buffer to hold RPC arguments
+      tmp_copies[i] = (char*)calloc(MAX_RPC_BYTES+3,sizeof(char));
+  }
 
  //create the global address space
   if(ctx_alloc_grant_map(&local_mem_region, MAX_REGION_PAGES) == -1) {
@@ -765,11 +796,6 @@ int main(int argc, char **argv)
                   }
                   //mark the entry as invalid, i.e. completed
                   curr->valid = 0;
-#ifdef DEBUG_RMC
-                  assert( occupied_srq_entries.test(curr->srq_entry_free) );
-#endif
-                  // Mark SRQ entry as available.
-                  occupied_srq_entries.reset(curr->srq_entry_free);
               } else 
                   DLog("Un-implemented op. in WQ entry. drop it on the floor.\n");
 
@@ -799,23 +825,15 @@ int main(int argc, char **argv)
       // Msutherl: check all sockets (sinfos) for outstanding rpc
       for(i = 0; i < node_cnt; i++) {
           if( i != this_nid ) {
-              int srq_entry = get_srq_entry();
-              int srq_o = srq_entry * (MAX_RPC_BYTES+2);
-              char* rbuf = (char*)(srq_buf + srq_o);
-              
-              int nrecvd = recv(sinfo[i].fd, rbuf, MAX_RPC_BYTES+2, MSG_DONTWAIT);
+              char* rbuf = tmp_copies[i];
+              int nrecvd = recv(sinfo[i].fd, rbuf, MAX_RPC_BYTES+3, MSG_DONTWAIT);
               if( nrecvd > 0 ) {
-#ifdef DEBUG_RMC
-                  assert( !occupied_srq_entries.test(srq_entry) );
-#endif
-                  occupied_srq_entries.set(srq_o);
-
                   printf("[rmc_poll] got something non-zero, nbytes = %d\n",nrecvd);
-                  printf("Passed buf (string interpret): %s\n",rbuf);
                   // check whether it's an rpc send, or recv to already sent rpc
                   int footer_offset = nrecvd-2;
                   char dmux = *((char*)rbuf + footer_offset);
                   uint8_t sending_qp = *((uint8_t*)rbuf + footer_offset+1);
+                  uint8_t recv_slot = *((uint8_t*)rbuf + footer_offset+2);
 #ifdef PRINT_BUFS
                   DLog("Printing RPC Buffer after receive.\n");
                   print_cbuf( (char*)rbuf, nrecvd );
@@ -823,31 +841,28 @@ int main(int argc, char **argv)
                   switch( dmux ) {
                       case 's':
                           {
-                              //uint8_t qp_to_terminate = get_server_qp(cqs,local_CQ_heads,num_qps);
+                              // copy tmp buf into actual recv slot (this is emulated
+                              // and does not represent modelled zero-copy hardware)
+                              char* recv_slot_ptr = recv_slots[i]  // base
+                                  + (recv_slot * (MAX_RPC_BYTES+3));
+                              memcpy((void*) recv_slot_ptr,(void*)rbuf,nrecvd);
                               uint8_t qp_to_terminate = get_server_qp_rrobin();
                               cq = cqs[qp_to_terminate];
-                              // push into the cq.
                               uint8_t* local_cq_head = &(local_CQ_heads[qp_to_terminate]);
                               uint8_t* local_cq_SR = &(local_CQ_SRs[qp_to_terminate]);
-                              cq->q[*local_cq_head].srq_offset = srq_o;
-                              cq->q[*local_cq_head].srq_entry = srq_entry;
                               cq->q[*local_cq_head].SR = *local_cq_SR;
                               cq->q[*local_cq_head].sending_nid = i;
                               cq->q[*local_cq_head].tid = sending_qp;
+                              cq->q[*local_cq_head].slot_idx = recv_slot;
                               DLog("Received rpc SEND (\'s\') at rmc #%d. Receive-side QP info is:\n"
                                       "\t{ qp_to_terminate : %d },\n"
                                       "\t{ local_cq_head : %d },\n"
-                                      "\t{ QP[%d]->SR : %d },\n"
-                                      "\t{ local_cq_SR : %d },\n"
-                                      "\t{ CQ->SR : %d },\n"
                                       "\t{ sender's QP : %d },\n"
-                                      "\t{ srq_address : %p },\n",
+                                      "\t{ recv_slot : %d },\n",
                                       this_nid, qp_to_terminate,*local_cq_head,
-                                      qp_to_terminate,cq->q[*local_cq_head].SR,
-                                      *local_cq_SR,
-                                      cq->SR,
+                                      qp_to_terminate,
                                       sending_qp,
-                                      rbuf);
+                                      recv_slot );
                               *local_cq_head += 1;
                               if(*local_cq_head >= MAX_NUM_WQ) {
                                   *local_cq_head = 0;
@@ -860,11 +875,9 @@ int main(int argc, char **argv)
                               // TODO: TODO: TODO:
                               // - how to re-use/signal SRQ entry on return?
                               // - for now just re-mark it as free
-                              occupied_srq_entries.reset(srq_o);
                               cq = cqs[sending_qp];
                               uint8_t* local_cq_head = &(local_CQ_heads[sending_qp]);
                               uint8_t* local_cq_SR = &(local_CQ_SRs[sending_qp]);
-                              cq->q[*local_cq_head].srq_offset = srq_o;
                               cq->q[*local_cq_head].SR = *local_cq_SR;
                               cq->q[*local_cq_head].sending_nid = sending_qp;
                               DLog("Received rpc RETURN (\'g\') at rmc #%d. Send-side QP info is:\n"
@@ -905,7 +918,10 @@ int main(int argc, char **argv)
   free(local_CQ_SRs);
   free(compl_idx);
   free(sinfo);
-  free(srq_buf);
+  for(int i = 0; i < node_cnt; i++ ) {
+      free(tmp_copies[i]);
+  }
+  free(tmp_copies);
   return 0;
 }
 

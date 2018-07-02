@@ -48,6 +48,9 @@
 #define KAL_PIN         14
 
 #define PAGE_SIZE 4096
+#define MSGS_PER_PAIR 16
+
+#include <atomic> // Msutherl
 
 typedef struct wq_entry {
   uint8_t op;
@@ -61,15 +64,17 @@ typedef struct wq_entry {
   uint16_t nid;
   uint64_t offset;
   uint64_t length;
-  unsigned srq_entry_free;
+  /* Msutherl: */
+    uint8_t slot_idx;
 } wq_entry_t;
 
 typedef struct cq_entry { 
   volatile uint8_t SR;
   volatile uint8_t tid;
-  uint64_t srq_offset;
-  uint16_t sending_nid;
-  unsigned srq_entry;
+  /* Msutherl: */
+      uint8_t sending_nid;
+      uint8_t sending_qp;
+      uint8_t slot_idx;
 } cq_entry_t;
 
 typedef struct rmc_wq {
@@ -90,6 +95,18 @@ typedef struct qp_info {
   int node_cnt;
   int this_nid;
 } qp_info_t;
+
+typedef struct sslot {
+    volatile bool valid;
+    size_t msg_size;
+    uint8_t sending_qp;
+    uint8_t wq_entry_idx;
+} send_slot_t;
+
+typedef struct send_slot_metadata {
+    std::atomic<bool> valid;
+    unsigned sslot_index;
+} send_metadata_t;
 
 // debug entry for printing a wq entry
 

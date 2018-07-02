@@ -60,27 +60,59 @@ int main(int argc, char **argv)
   int num_iter = (int)ITERS;
 
   if (argc != 5) {
-    fprintf(stdout,"Usage: ./rpc <target_nid> <this_nid> <local_qp_id> <rpc_size> \n"); 
+    fprintf(stdout,"Usage: ./rpc <target_nid> <this_nid> <node_cnt> <rpc_size> \n"); 
     return 1;
   }
     
   int target_nid = atoi(argv[1]);
   int snid = atoi(argv[2]);
-  int qp_id = atoi(argv[3]);
+  int node_cnt = atoi(argv[3]);
   int rpc_size = atoi(argv[4]);
   uint64_t ctx_size = PAGE_SIZE * PAGE_SIZE;
   uint64_t buf_size = PAGE_SIZE;
 
   uint8_t *ctx = NULL;
   uint8_t *lbuff = NULL;
-  uint8_t *srq = NULL;
   uint64_t lbuff_slot;
   uint64_t ctx_offset;
+
+  // FIXME: max node count = 16
+  uint8_t* recv_slots[16];
+  uint8_t* sslots[16];
+  uint8_t* slot_metadata[16];
   
   int fd = kal_open((char*)RMC_DEV);  
   if(fd < 0) {
     printf("cannot open RMC dev. driver\n");
     return -1;
+  }
+
+  // register send/recv state created by RMC
+  size_t recv_buffer_size = (MAX_RPC_BYTES ) * MSGS_PER_PAIR ;
+  size_t n_rbuf_pages = (recv_buffer_size / PAGE_SIZE) + 1;
+
+  size_t send_slots_size = MSGS_PER_PAIR * sizeof(send_slot_t);
+  size_t n_sslots_pages = (send_slots_size / PAGE_SIZE) + 1;
+
+  size_t avail_slots_size = MSGS_PER_PAIR * sizeof(send_metadata_t);
+  size_t n_avail_slots_pages = (avail_slots_size / PAGE_SIZE) + 1;
+  for(int i = 0; i < node_cnt; i++) {
+      char fmt[25];
+      sprintf(fmt,"rqueue_node_%d.txt",i);
+      if(kal_reg_lbuff(fd,&(recv_slots[i]),fmt,n_rbuf_pages) < 0) {
+          printf("Failed to allocate receive slots for node %d\n",i);
+          return -1;
+      }      
+      sprintf(fmt,"send_slots_%d.txt",i);
+      if(kal_reg_lbuff(fd,&(sslots[i]),fmt,n_sslots_pages) < 0) {
+          printf("Failed to allocate send slots for node %d\n",i);
+          return -1;
+      }      
+      sprintf(fmt,"avail_slots_%d.txt",i);
+      if(kal_reg_lbuff(fd,&(slot_metadata[i]),fmt,n_avail_slots_pages) < 0) {
+          printf("Failed to allocate slot metadata for node %d\n",i);
+          return -1;
+      }      
   }
 
   char fmt[25];
@@ -89,21 +121,10 @@ int main(int argc, char **argv)
   if(kal_reg_lbuff(fd, &lbuff, fmt,buf_size/PAGE_SIZE) < 0) {
     printf("Failed to allocate local buffer\n");
     return -1;
-  } else {
-    fprintf(stdout, "Local buffer was mapped to address %p, number of pages is %ld\n",
-	    lbuff, buf_size/PAGE_SIZE);
-  }
-
-  // register SRQ
-  size_t srq_size = (MAX_RPC_BYTES+2) * MAX_NUM_WQ; // FIXME: dynamic resize later
-  size_t n_srq_pages = (srq_size / PAGE_SIZE) + 1;
-  if(kal_reg_lbuff(fd, &srq, "srq.txt" ,n_srq_pages) < 0) {
-    printf("Failed to map memory for SRQ\n");
-    return -1;
-  } else {
-    fprintf(stdout, "SRQ buffers were mapped to address %p, number of pages is %ld\n",
-	    srq, n_srq_pages);
-  }
+  } //else {
+    //fprintf(stdout, "Local buffer was mapped to address %p, number of pages is %ld\n",
+	    //lbuff, buf_size/PAGE_SIZE);
+  //}
 
   //register context
   if(kal_reg_ctx(fd, &ctx, ctx_size/PAGE_SIZE) < 0) {
@@ -115,7 +136,7 @@ int main(int argc, char **argv)
   }
 
   //register WQ
-  if(kal_reg_wq(fd, &wq,qp_id) < 0) {
+  if(kal_reg_wq(fd, &wq,0) < 0) {
     printf("Failed to register WQ\n");
     return -1;
   } else {
@@ -123,7 +144,7 @@ int main(int argc, char **argv)
   }
 
   //register CQ
-  if(kal_reg_cq(fd, &cq,qp_id) < 0) {
+  if(kal_reg_cq(fd, &cq,0) < 0) {
     printf("Failed to register CQ\n");
   } else {
     fprintf(stdout, "CQ was registered.\n");
@@ -138,17 +159,20 @@ int main(int argc, char **argv)
   
   for(size_t i = 0; i < num_iter; i++) {
     ctx_offset = (i * PAGE_SIZE) % ctx_size;
-    lbuff_slot = (i * (OBJ_READ_SIZE+2)) % (PAGE_SIZE - (OBJ_READ_SIZE+2)); // 64B+1 increments, wrap-around after that much
+    lbuff_slot = (i * (OBJ_READ_SIZE+3)) % (PAGE_SIZE - (OBJ_READ_SIZE+3)); // 64B+1 increments, wrap-around after that much
 
     // write a test string into lbuff
     for(int o = 0; o < 12; o++) {
         *(lbuff + (lbuff_slot+o)) = tmp[o];
     }
 
-    start = rdtsc();
+    send_metadata_t* ptr = (send_metadata_t*) slot_metadata[target_nid];
+    unsigned available_slot_index = get_send_slot(ptr,node_cnt);
+    send_slot_t* target_node_slots = (send_slot_t*)sslots[target_nid];
+    send_slot_t* my_slot = (target_node_slots + available_slot_index);
 
-    //rmc_rread_sync(wq, cq, lbuff, lbuff_slot, snid, CTX_0, ctx_offset, OBJ_READ_SIZE);
-    rmc_send(wq, cq, CTX_0, (char*)lbuff, lbuff_slot, (char*)srq, OBJ_READ_SIZE,target_nid,qp_id);
+    start = rdtsc();
+    rmc_send(wq, (char*)lbuff, lbuff_slot, OBJ_READ_SIZE,target_nid,0 /* sender qp */,my_slot,available_slot_index);
 
     end = rdtsc();
     

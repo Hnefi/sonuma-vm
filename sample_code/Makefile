@@ -32,7 +32,7 @@
 SHELL = /bin/sh
 CC    = g++
 
-CFLAGS	+= -I$(LIBSONUMA_PATH)
+CFLAGS	+= -I$(LIBSONUMA_PATH) -std=c++11
 LDFLAGS	= -L$(LIBSONUMA_PATH) -Wl,-rpath,$(LIBSONUMA_PATH) -lsonuma -lrt
 
 TARGETS  = bench_sync bench_async bench_server multi_qp_read rpc_sync rpc_service rpc_service_multiqp

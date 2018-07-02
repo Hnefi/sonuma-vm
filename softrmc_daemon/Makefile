@@ -32,7 +32,7 @@
 SHELL = /bin/sh
 CC    = g++
 
-CFLAGS	+= -I$(LIBSONUMA_PATH)
+CFLAGS	+= -I$(LIBSONUMA_PATH) -std=c++11
 
 TARGET  = rmcd
 
