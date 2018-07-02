@@ -96,7 +96,7 @@ int main(int argc, char **argv)
   }
 
   // register SRQ
-  size_t srq_size = (MAX_RPC_BYTES+1) * MAX_NUM_WQ; // FIXME: dynamic resize later
+  size_t srq_size = MAX_RPC_BYTES * MAX_NUM_WQ;
   size_t n_srq_pages = (srq_size / PAGE_SIZE) + 1;
   if(kal_reg_lbuff(fd, &srq, "srq.txt" ,n_srq_pages) < 0) {
     printf("Failed to map memory for SRQ\n");

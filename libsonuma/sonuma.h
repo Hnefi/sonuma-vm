@@ -105,7 +105,7 @@ int kal_reg_ctx(int fd, uint8_t **ctx_ptr, uint32_t num_pages);
 
 /* Msutherl: beta-implementations for send/recv. */
 //void rmc_recv(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr,int lbuff_offset, char *data, int size, int snid, unsigned sending_qp,unsigned srq_slot);
-void rmc_recv(rmc_wq_t *wq, char* lbuff_ptr,int lbuff_offset,size_t size,int snid,unsigned sending_qp,unsigned slot_idx);
+void rmc_recv(rmc_wq_t *wq, char* lbuff_ptr,int lbuff_offset,size_t size,int snid,uint8_t sending_qp,uint8_t slot_idx);
 
 /* Msutherl: New version of rmc_send, using paired send/recv slots */
 void rmc_send(rmc_wq_t *wq, char *lbuff_ptr, int lbuff_offset, size_t size, int snid, uint8_t sending_qp, send_slot_t* send_slot,uint8_t slot_idx);
@@ -343,7 +343,7 @@ static inline int rmc_drain_cq(rmc_wq_t *wq, rmc_cq_t *cq, async_handler *handle
   return 0;
 }
 
-static inline void rmc_poll_cq_rpc(rmc_cq_t* cq, char* recv_slots, rpc_handler* theRPC, int* sending_nid, int* sending_qp,uint8_t* slot_idx)
+static inline void rmc_poll_cq_rpc(rmc_cq_t* cq, char** recv_slots, rpc_handler* theRPC, int* sending_nid, int* sending_qp,uint8_t* slot_idx)
 {
   uint8_t cq_tail = cq->tail;
 
@@ -357,7 +357,9 @@ static inline void rmc_poll_cq_rpc(rmc_cq_t* cq, char* recv_slots, rpc_handler* 
   *sending_qp = cq->q[cq_tail].tid;
   *slot_idx = cq->q[cq_tail].slot_idx;
 
-  theRPC(*sending_nid, (recv_slots + (MAX_RPC_BYTES+3)*(*slot_idx)), &(cq->q[cq_tail]), NULL);
+  char* node_recv_slot = recv_slots[*sending_nid];
+
+  theRPC(*sending_nid, (node_recv_slot + (MAX_RPC_BYTES*(*slot_idx))), &(cq->q[cq_tail]), NULL);
 
   cq->tail = cq->tail + 1;
   //check if CQ reached its end
@@ -378,7 +380,7 @@ static inline void rmc_test_cq_rpc(rmc_cq_t* cq, char* recv_slots, rpc_handler* 
       *sending_nid = cq->q[cq_tail].sending_nid;
       *sending_qp = cq->q[cq_tail].tid;
       *slot_idx = cq->q[cq_tail].slot_idx;
-      theRPC(*sending_nid, (recv_slots + (MAX_RPC_BYTES+3)*(*slot_idx)), &(cq->q[cq_tail]), NULL);
+      theRPC(*sending_nid, (recv_slots + (MAX_RPC_BYTES*(*slot_idx))), &(cq->q[cq_tail]), NULL);
 
       cq->tail = cq->tail + 1;
       //check if CQ reached its end

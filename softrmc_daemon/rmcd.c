@@ -644,7 +644,7 @@ int main(int argc, char **argv)
       }
 
       // make a tmp buffer to hold RPC arguments
-      tmp_copies[i] = (char*)calloc(MAX_RPC_BYTES+3,sizeof(char));
+      tmp_copies[i] = (char*)calloc(MAX_RPC_BYTES,sizeof(char));
   }
 
  //create the global address space
@@ -826,7 +826,7 @@ int main(int argc, char **argv)
       for(i = 0; i < node_cnt; i++) {
           if( i != this_nid ) {
               char* rbuf = tmp_copies[i];
-              int nrecvd = recv(sinfo[i].fd, rbuf, MAX_RPC_BYTES+3, MSG_DONTWAIT);
+              int nrecvd = recv(sinfo[i].fd, rbuf, MAX_RPC_BYTES, MSG_DONTWAIT);
               if( nrecvd > 0 ) {
                   printf("[rmc_poll] got something non-zero, nbytes = %d\n",nrecvd);
                   // check whether it's an rpc send, or recv to already sent rpc
@@ -844,7 +844,7 @@ int main(int argc, char **argv)
                               // copy tmp buf into actual recv slot (this is emulated
                               // and does not represent modelled zero-copy hardware)
                               char* recv_slot_ptr = recv_slots[i]  // base
-                                  + (recv_slot * (MAX_RPC_BYTES+3));
+                                  + (recv_slot * (MAX_RPC_BYTES));
                               memcpy((void*) recv_slot_ptr,(void*)rbuf,nrecvd);
                               uint8_t qp_to_terminate = get_server_qp_rrobin();
                               cq = cqs[qp_to_terminate];

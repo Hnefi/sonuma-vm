@@ -35,7 +35,7 @@ CC    = g++
 CFLAGS	+= -I$(LIBSONUMA_PATH) -std=c++11
 LDFLAGS	= -L$(LIBSONUMA_PATH) -Wl,-rpath,$(LIBSONUMA_PATH) -lsonuma -lrt
 
-TARGETS  = bench_sync bench_async bench_server multi_qp_read rpc_sync rpc_service rpc_service_multiqp
+TARGETS  = bench_sync bench_async bench_server multi_qp_read rpc_sync rpc_service
 SOURCES = bench_sync.c bench_server.c bench_async.c multi_qp_read.c rpc_sync.c rpc_service.c rpc_service_multiqp.c
 OBJECTS = $(SOURCES:.c=.o)
 
