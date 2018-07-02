@@ -105,7 +105,7 @@ int kal_reg_ctx(int fd, uint8_t **ctx_ptr, uint32_t num_pages);
 
 /* Msutherl: beta-implementations for send/recv. */
 
-void rmc_recv(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr,int lbuff_offset, char *data, int size, int snid, uint8_t sending_qp);
+void rmc_recv(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr,int lbuff_offset, char *data, int size, int snid, unsigned sending_qp,unsigned srq_slot);
 void rmc_send(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr, int lbuff_offset, char *data, int size, int snid, uint8_t sending_qp);
 
 void print_cbuf(char* buf, size_t len)
@@ -330,7 +330,7 @@ static inline int rmc_drain_cq(rmc_wq_t *wq, rmc_cq_t *cq, async_handler *handle
   return 0;
 }
 
-static inline void rmc_poll_cq_rpc(rmc_cq_t* cq, char* srq, rpc_handler* theRPC, uint8_t* sending_nid, uint8_t* sending_qp)
+static inline void rmc_poll_cq_rpc(rmc_cq_t* cq, char* srq, rpc_handler* theRPC, int* sending_nid, int* sending_qp,unsigned* srq_entry_reuse)
 {
   uint8_t cq_tail = cq->tail;
 
@@ -342,6 +342,7 @@ static inline void rmc_poll_cq_rpc(rmc_cq_t* cq, char* srq, rpc_handler* theRPC,
   // call handler and set nid for sending wq in return
   *sending_nid = cq->q[cq_tail].sending_nid;
   *sending_qp = cq->q[cq_tail].tid;
+  *srq_entry_reuse = cq->q[cq_tail].srq_entry;
   theRPC(*sending_nid, srq, &(cq->q[cq_tail]), NULL);
 
   cq->tail = cq->tail + 1;
@@ -352,7 +353,7 @@ static inline void rmc_poll_cq_rpc(rmc_cq_t* cq, char* srq, rpc_handler* theRPC,
   }
 }
 
-static inline void rmc_test_cq_rpc(rmc_cq_t* cq, char* srq, rpc_handler* theRPC,int* sending_nid, int* sending_qp)
+static inline void rmc_test_cq_rpc(rmc_cq_t* cq, char* srq, rpc_handler* theRPC,int* sending_nid, int* sending_qp,unsigned* srq_entry_reuse)
 {
   uint8_t cq_tail = cq->tail;
 
@@ -362,6 +363,7 @@ static inline void rmc_test_cq_rpc(rmc_cq_t* cq, char* srq, rpc_handler* theRPC,
       // call handler and set nid for sending wq in return
       *sending_nid = cq->q[cq_tail].sending_nid;
       *sending_qp = cq->q[cq_tail].tid;
+      *srq_entry_reuse = cq->q[cq_tail].srq_entry;
       theRPC(*sending_nid, srq, &(cq->q[cq_tail]), NULL);
 
       cq->tail = cq->tail + 1;

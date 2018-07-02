@@ -42,6 +42,7 @@
 #include <stdio.h>
 
 #include <vector>
+#include <bitset>
 #include <algorithm>
 
 #include "rmcd.h"
@@ -62,6 +63,8 @@ static int node_cnt, this_nid;
 // rpc recv. buffer
 static char* srq_buf;
 
+static std::bitset<MIN_RPCBUF_ENTRIES> occupied_srq_entries;
+
 int count_valid_cq_entries(volatile rmc_cq_t* cq, int8_t local_cq_head)
 {
     int tailIdx = cq->tail;
@@ -79,10 +82,14 @@ int count_valid_cq_entries(volatile rmc_cq_t* cq, int8_t local_cq_head)
     return retCount;
 }
 
-// Msutherl: returns offset to SRQ for RMC to place data into
-int get_srq_offset() {
-    //TODO
-    return 0;
+// Msutherl: returns to SRQ for RMC to place data into
+int get_srq_entry() {
+    // find smallest SRQ index (closest to 0) that's available
+    std::bitset<MIN_RPCBUF_ENTRIES> tmp = occupied_srq_entries;
+    int off = 0;
+    while( off < tmp.size() && tmp.test(off) ) { ++off; }
+    return off;
+    // FIXME: this will alwaqys return a value, case where SRQ full is not handled
 }
 
 // Msutherl: returns qp number for RMC on server-side to terminate msg. into
@@ -767,6 +774,11 @@ int main(int argc, char **argv)
                   }
                   //mark the entry as invalid, i.e. completed
                   curr->valid = 0;
+#ifdef DEBUG_RMC
+                  assert( occupied_srq_entries.test(curr->srq_entry_free) );
+#endif
+                  // Mark SRQ entry as available.
+                  occupied_srq_entries.reset(curr->srq_entry_free);
               } else 
                   DLog("Un-implemented op. in WQ entry. drop it on the floor.\n");
 
@@ -796,8 +808,14 @@ int main(int argc, char **argv)
       // Msutherl: check all sockets (sinfos) for outstanding rpc
       for(i = 0; i < node_cnt; i++) {
           if( i != this_nid ) {
-              int srq_o = get_srq_offset();
+              int srq_entry = get_srq_entry();
+              int srq_o = srq_entry * (MAX_RPC_BYTES+2);
+#ifdef DEBUG_RMC
+              assert( occupied_srq_entries.test(curr->srq_entry_free) );
+#endif
+              occupied_srq_entries.set(srq_o);
               char* rbuf = (char*)(srq_buf + srq_o);
+              
               int nrecvd = recv(sinfo[i].fd, rbuf, MAX_RPC_BYTES+2, MSG_DONTWAIT);
               if( nrecvd > 0 ) {
                   printf("[rmc_poll] got something non-zero, nbytes = %d\n",nrecvd);
@@ -820,6 +838,7 @@ int main(int argc, char **argv)
                               uint8_t* local_cq_head = &(local_CQ_heads[qp_to_terminate]);
                               uint8_t* local_cq_SR = &(local_CQ_SRs[qp_to_terminate]);
                               cq->q[*local_cq_head].srq_offset = srq_o;
+                              cq->q[*local_cq_head].srq_entry = srq_entry;
                               cq->q[*local_cq_head].SR = *local_cq_SR;
                               cq->q[*local_cq_head].sending_nid = i;
                               cq->q[*local_cq_head].tid = sending_qp;
@@ -846,7 +865,8 @@ int main(int argc, char **argv)
                           }
                       case 'g':
                           {
-                              uint8_t sending_qp = 0; // FIXME: always 0 on sender for now
+                              // TODO: TODO: TODO:
+                              // - how to re-use/signal SRQ entry on return?
                               cq = cqs[sending_qp];
                               uint8_t* local_cq_head = &(local_CQ_heads[sending_qp]);
                               uint8_t* local_cq_SR = &(local_CQ_SRs[sending_qp]);

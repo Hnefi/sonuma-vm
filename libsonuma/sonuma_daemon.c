@@ -207,7 +207,7 @@ void rmc_send(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr, int lbuff
     }
 }
 
-void rmc_recv(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr,int lbuff_offset, char *srq, int size, int snid,uint8_t sending_qp)
+void rmc_recv(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr,int lbuff_offset, char *srq, int size, int snid,unsigned sending_qp,unsigned srq_entry_reuse)
 {
     // create WQ entry, response for arguments given to CQ
     uint8_t wq_head = wq->head;
@@ -232,6 +232,8 @@ void rmc_recv(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr,int lbuff_
 
     wq->q[wq_head].valid = 1;
     wq->q[wq_head].SR = wq->SR;
+    wq->q[wq_head].srq_entry_free = srq_entry_reuse;
+        // signal RMC to reuse this slot
 
     wq->head =  wq->head + 1;
 
@@ -240,5 +242,4 @@ void rmc_recv(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr,int lbuff_
         wq->head = 0;
         wq->SR ^= 1;
     }
-    // TODO: signal RMC that it can reuse SRQ entry
 }

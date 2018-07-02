@@ -52,8 +52,8 @@
 typedef struct wq_entry {
   uint8_t op;
   volatile uint8_t SR;
-  //set with a new WQ entry, unset when entry completed.
-  //Required for pipelining async ops.
+    //set with a new WQ entry, unset when entry completed.
+    //Required for pipelining async ops.
   volatile uint8_t valid;
   uint64_t buf_addr;
   uint64_t buf_offset;
@@ -61,6 +61,7 @@ typedef struct wq_entry {
   uint16_t nid;
   uint64_t offset;
   uint64_t length;
+  unsigned srq_entry_free;
 } wq_entry_t;
 
 typedef struct cq_entry { 
@@ -68,6 +69,7 @@ typedef struct cq_entry {
   volatile uint8_t tid;
   uint64_t srq_offset;
   uint16_t sending_nid;
+  unsigned srq_entry;
 } cq_entry_t;
 
 typedef struct rmc_wq {
@@ -91,7 +93,7 @@ typedef struct qp_info {
 
 // debug entry for printing a wq entry
 
-// Pure C implementation to return str rep. of WQ entry
+// Implementation to return str rep. of WQ entry
 // FIXME: assumes buffer has enough space (please buffer-overflow attack this!)
 int stringify_wq_entry(wq_entry_t* entry,char* buf)
 {
