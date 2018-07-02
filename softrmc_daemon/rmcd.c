@@ -672,15 +672,6 @@ int main(int argc, char **argv)
 #ifdef DEBUG_PERF_RMC
               clock_gettime(CLOCK_MONOTONIC, &start_time);
 #endif
-
-              /* Msutherl - replaced with stringify_(... )
-               * DLog("[main] reading remote memory, offset = %#x\n",
-                      wq->q[*local_wq_tail].offset);
-              DLog("[main] buffer address %#x\n",
-                      wq->q[*local_wq_tail].buf_addr);
-              DLog("[main] nid = %d; offset = %#x, len = %d\n", wq->q[*local_wq_tail].nid, wq->q[*local_wq_tail].offset, wq->q[*local_wq_tail].length);
-              */
-
               curr = &(wq->q[*local_wq_tail]);
 #ifdef DEBUG_RMC // used ifdef here to avoid stringify every single time
               // (even in perf-mode)
@@ -825,7 +816,7 @@ int main(int argc, char **argv)
                   int footer_offset = nrecvd-2;
                   char dmux = *((char*)rbuf + footer_offset);
                   uint8_t sending_qp = *((uint8_t*)rbuf + footer_offset+1);
-#ifdef DEBUG_RMC
+#ifdef PRINT_BUFS
                   DLog("Printing RPC Buffer after receive.\n");
                   print_cbuf( (char*)rbuf, nrecvd );
 #endif

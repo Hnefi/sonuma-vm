@@ -169,7 +169,7 @@ void rmc_send(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr, int lbuff
     *(lbuff_ptr + (lbuff_offset+size)) = 's';
     *(lbuff_ptr + (lbuff_offset+size+1)) = sending_qp;
     size += 2; // 2 bytes more to pass the character 's' and sender's QP
-#ifdef DEBUG
+#ifdef PRINT_BUFS
     print_cbuf( (char*)lbuff_ptr , size );
 #endif
     if(size < 64) wq->q[wq_head].length = 64; //at least 64B
@@ -222,7 +222,7 @@ void rmc_recv(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr,int lbuff_
     *(lbuff_ptr + (lbuff_offset+size)) = 'g';
     *(lbuff_ptr + (lbuff_offset+size+1)) = sending_qp;
     size += 2; // 2 bytes more to pass the character 'g' and send qp id
-#if 0
+#ifdef PRINT_BUFS
     print_cbuf( (char*)lbuff_ptr , size );
 #endif
     if(size < 64) wq->q[wq_head].length = 64; //at least 64B
