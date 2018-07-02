@@ -103,7 +103,7 @@ int main(int argc, char **argv)
       if(kal_reg_lbuff(fd,&(recv_slots[i]),fmt,n_rbuf_pages) < 0) {
           printf("Failed to allocate receive slots for node %d\n",i);
           return -1;
-      }      
+      }
       sprintf(fmt,"send_slots_%d.txt",i);
       sslots[i] = NULL;
       if(kal_reg_lbuff(fd,&(sslots[i]),fmt,n_sslots_pages) < 0) {
@@ -176,8 +176,11 @@ int main(int argc, char **argv)
         int available_slot_index = get_send_slot(ptr,node_cnt);
         if( available_slot_index < 0 ) {
             printf("All slots full, wait....\n");
+            for(int slot_num = 0; slot_num < node_cnt; slot_num++ ) {
+                printf("Slot num %d: Valid: %d, index: %d.\n",slot_num,ptr[slot_num].valid,ptr[slot_num].sslot_index);
+            }
             diecount--;
-            if(diecount < 0) { printf("ROMES, something's horribl wrong\n"); exit(1); }
+            if(diecount < 0) { printf("ROMES, something's horribly wrong....\n"); exit(1); }
         }
     }
     send_slot_t* target_node_slots = (send_slot_t*)sslots[target_nid];

@@ -39,7 +39,7 @@
 
 #include "sonuma.h"
 
-#define ITERS 1
+#define ITERS 16
 #define SLOT_SIZE 64
 #define OBJ_READ_SIZE 64
 #define CTX_0 0
@@ -161,7 +161,7 @@ int main(int argc, char **argv)
   if(kal_reg_cq(fd, &cq,qp_id) < 0) {
     printf("Failed to register CQ\n");
   } else {
-    fprintf(stdout, "CQ was mapped to address %p\n", wq);
+    fprintf(stdout, "CQ was mapped to address %p\n", cq);
   }
   
   fprintf(stdout,"Init done! Will receive %d CQ RPCs!  (this_nid = %d)\n",num_iter, this_nid);
