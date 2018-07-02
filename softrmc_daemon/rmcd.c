@@ -810,14 +810,15 @@ int main(int argc, char **argv)
           if( i != this_nid ) {
               int srq_entry = get_srq_entry();
               int srq_o = srq_entry * (MAX_RPC_BYTES+2);
-#ifdef DEBUG_RMC
-              assert( occupied_srq_entries.test(curr->srq_entry_free) );
-#endif
-              occupied_srq_entries.set(srq_o);
               char* rbuf = (char*)(srq_buf + srq_o);
               
               int nrecvd = recv(sinfo[i].fd, rbuf, MAX_RPC_BYTES+2, MSG_DONTWAIT);
               if( nrecvd > 0 ) {
+#ifdef DEBUG_RMC
+                  assert( occupied_srq_entries.test(srq_entry) );
+#endif
+                  occupied_srq_entries.set(srq_o);
+
                   printf("[rmc_poll] got something non-zero, nbytes = %d\n",nrecvd);
                   printf("Passed buf (string interpret): %s\n",rbuf);
                   // check whether it's an rpc send, or recv to already sent rpc
@@ -867,6 +868,8 @@ int main(int argc, char **argv)
                           {
                               // TODO: TODO: TODO:
                               // - how to re-use/signal SRQ entry on return?
+                              // - for now just re-mark it as free
+                              occupied_srq_entries.reset(srq_o);
                               cq = cqs[sending_qp];
                               uint8_t* local_cq_head = &(local_CQ_heads[sending_qp]);
                               uint8_t* local_cq_SR = &(local_CQ_SRs[sending_qp]);

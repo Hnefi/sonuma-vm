@@ -23,7 +23,7 @@ for i in $FILES; do
     NAME_OF_GUEST=$(sed -rn 's#^name\s*=\s*\"(\w+\d*)\"#\1#p' < $i);
     DOMID_OF_GUEST=$(xl domid $NAME_OF_GUEST);
     echo "$COUNT:$IP_OF_GUEST:$DOMID_OF_GUEST" >> servers.txt;
-    $COUNT+=1
+    COUNT+=1
 done
 
 sleep 30
