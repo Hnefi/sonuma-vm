@@ -177,7 +177,7 @@ int main(int argc, char **argv)
         if( available_slot_index < 0 ) {
             printf("All slots full, wait....\n");
             for(int slot_num = 0; slot_num < node_cnt; slot_num++ ) {
-                printf("Slot num %d: Valid: %d, index: %d.\n",slot_num,ptr[slot_num].valid,ptr[slot_num].sslot_index);
+                printf("Slot num %d: Valid: %d, index: %d.\n",slot_num,ptr[slot_num].valid.load(),ptr[slot_num].sslot_index);
             }
             diecount--;
             if(diecount < 0) { printf("ROMES, something's horribly wrong....\n"); exit(1); }
