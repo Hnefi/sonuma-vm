@@ -169,8 +169,17 @@ int main(int argc, char **argv)
         *(lbuff + (lbuff_slot+o)) = tmp[o];
     }
 
-    send_metadata_t* ptr = (send_metadata_t*) slot_metadata[target_nid];
-    unsigned available_slot_index = get_send_slot(ptr,node_cnt);
+    int available_slot_index = -1;
+    int diecount = 32;
+    while( available_slot_index < 0 ) {
+        send_metadata_t* ptr = (send_metadata_t*) slot_metadata[target_nid];
+        int available_slot_index = get_send_slot(ptr,node_cnt);
+        if( available_slot_index < 0 ) {
+            printf("All slots full, wait....\n");
+            diecount--;
+            if(diecount < 0) { printf("ROMES, something's horribl wrong\n"); exit(1); }
+        }
+    }
     send_slot_t* target_node_slots = (send_slot_t*)sslots[target_nid];
     send_slot_t* my_slot = (target_node_slots + available_slot_index);
 
