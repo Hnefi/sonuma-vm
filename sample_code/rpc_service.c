@@ -121,16 +121,19 @@ int main(int argc, char **argv)
   for(int i = 0; i < node_cnt; i++) {
       char fmt[25];
       sprintf(fmt,"rqueue_node_%d.txt",i);
+      recv_slots[i] = NULL;
       if(kal_reg_lbuff(fd,&(recv_slots[i]),fmt,n_rbuf_pages) < 0) {
           printf("Failed to allocate receive slots for node %d\n",i);
           return -1;
       }      
       sprintf(fmt,"send_slots_%d.txt",i);
+      sslots[i] = NULL;
       if(kal_reg_lbuff(fd,&(sslots[i]),fmt,n_sslots_pages) < 0) {
           printf("Failed to allocate send slots for node %d\n",i);
           return -1;
       }      
       sprintf(fmt,"avail_slots_%d.txt",i);
+      slot_metadata[i] = NULL;
       if(kal_reg_lbuff(fd,&(slot_metadata[i]),fmt,n_avail_slots_pages) < 0) {
           printf("Failed to allocate slot metadata for node %d\n",i);
           return -1;
