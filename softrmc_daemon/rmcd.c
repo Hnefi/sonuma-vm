@@ -815,7 +815,7 @@ int main(int argc, char **argv)
               int nrecvd = recv(sinfo[i].fd, rbuf, MAX_RPC_BYTES+2, MSG_DONTWAIT);
               if( nrecvd > 0 ) {
 #ifdef DEBUG_RMC
-                  assert( occupied_srq_entries.test(srq_entry) );
+                  assert( !occupied_srq_entries.test(srq_entry) );
 #endif
                   occupied_srq_entries.set(srq_o);
 
