@@ -116,11 +116,10 @@ int main(int argc, char **argv)
           printf("Failed to allocate slot metadata for node %d\n",i);
           return -1;
       }
-      /*send_metadata_t* ptr = (send_metadata_t*) (slot_metadata[i]);
+      send_metadata_t* ptr = (send_metadata_t*) (slot_metadata[i]);
       for(int slot_num = 0; slot_num < MSGS_PER_PAIR; slot_num++ ) {
-          printf("Slot num %d: Valid: %d, index: %d.\n",slot_num,ptr[slot_num].valid.load(),ptr[slot_num].sslot_index);
+          slot_num,ptr[slot_num].valid.store(1);
       }
-      */
   }
 
   char fmt[25];
