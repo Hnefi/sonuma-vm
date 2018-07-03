@@ -177,12 +177,11 @@ int main(int argc, char **argv)
     int available_slot_index = -1;
     int diecount = 32;
     while( available_slot_index < 0 ) {
-        uint8_t* tptr = slot_metadata[target_nid];
-        send_metadata_t* ptr = (send_metadata_t*)tptr;
-        int available_slot_index = get_send_slot(ptr,MSGS_PER_PAIR);
+        send_metadata_t* ptr = (send_metadata_t*) (slot_metadata[target_nid]);
+        int available_slot_index = get_send_slot(ptr,1);
         if( available_slot_index < 0 ) {
             printf("All slots full, wait....\n");
-            for(int slot_num = 0; slot_num < MSGS_PER_PAIR; slot_num++ ) {
+            for(int slot_num = 0; slot_num < 1; slot_num++ ) {
                 printf("Slot num %d: Valid: %d, index: %d.\n",slot_num,ptr[slot_num].valid.load(),ptr[slot_num].sslot_index);
             }
             diecount--;

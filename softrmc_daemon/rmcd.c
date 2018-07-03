@@ -631,25 +631,25 @@ int main(int argc, char **argv)
   size_t n_sslots_pages = (send_slots_size / PAGE_SIZE) + 1;
 
   size_t avail_slots_size = MSGS_PER_PAIR * sizeof(send_metadata_t);
-  size_t n_avail_slots_pages = (avail_slots_size / PAGE_SIZE) + 1;
+  //size_t n_avail_slots_pages = (avail_slots_size / PAGE_SIZE) + 1;
+  size_t n_avail_slots_pages = 1;
   for(int i = 0; i < node_cnt; i++ ) {
       char fmt[20];
       sprintf(fmt,"rqueue_node_%d.txt",i);
-      local_buf_alloc(&recv_slots[i],fmt,n_rbuf_pages);
+      local_buf_alloc(&(recv_slots[i]),fmt,n_rbuf_pages);
       sprintf(fmt,"send_slots_%d.txt",i);
-      local_buf_alloc(&sslots[i],fmt,n_sslots_pages);
+      local_buf_alloc(&(sslots[i]),fmt,n_sslots_pages);
       sprintf(fmt,"avail_slots_%d.txt",i);
-      local_buf_alloc(&avail_slots[i],fmt,n_avail_slots_pages);
+      local_buf_alloc(&(avail_slots[i]),fmt,n_avail_slots_pages);
       // for every node pair, init send slots metadata
-      char* node_metadata_ptr = avail_slots[i];
-      send_metadata_t* nodetmp = (send_metadata_t*) node_metadata_ptr;
-      for(int tmp = 0; tmp < MSGS_PER_PAIR; tmp++) {
+      send_metadata_t* nodetmp = (send_metadata_t*)(avail_slots[i]);
+      nodetmp->valid = true;
+      nodetmp->sslot_index = 0;
+      /*for(int tmp = 0; tmp < MSGS_PER_PAIR; tmp++) {
           nodetmp[tmp].valid = true;
           nodetmp[tmp].sslot_index = tmp;
       }
-      for(int tmp = 0; tmp < MSGS_PER_PAIR; tmp++) {
-          printf("Valid: %d, Index: %d\n",nodetmp[tmp].valid.load(), nodetmp[tmp].sslot_index);
-      }
+      */
       // make a tmp buffer to hold RPC arguments
       tmp_copies[i] = (char*)calloc(MAX_RPC_BYTES,sizeof(char));
   }
