@@ -647,6 +647,9 @@ int main(int argc, char **argv)
           nodetmp[tmp].valid = true;
           nodetmp[tmp].sslot_index = tmp;
       }
+      for(int tmp = 0; tmp < MSGS_PER_PAIR; tmp++) {
+          printf("Valid: %d, Index: %d\n",nodetmp[tmp].valid.load(), nodetmp[tmp].sslot_index);
+      }
       // make a tmp buffer to hold RPC arguments
       tmp_copies[i] = (char*)calloc(MAX_RPC_BYTES,sizeof(char));
   }
