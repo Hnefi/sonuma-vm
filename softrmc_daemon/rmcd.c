@@ -116,7 +116,7 @@ uint8_t get_server_qp(volatile rmc_cq_t** cqs,uint8_t* local_cq_heads, int num_q
 }
 
 static uint8_t qp_rr = 0;
-uint8_t get_server_qp_rrobin() { return (qp_rr++) % 3; }
+uint8_t get_server_qp_rrobin() { return (qp_rr++) % 4; }
 
 void print_cbuf(char* buf, size_t len)
 {
@@ -700,7 +700,6 @@ int main(int argc, char **argv)
           uint8_t* local_cq_SR = &(local_CQ_SRs[qp_num]);
           while ( wq->connected == true && // poll only connected WQs;
                   (wq->q[*local_wq_tail].SR == *local_wq_SR) ) {
-
               DLog("[main] : Processing WQ entry [%d] (local_wq_tail) from QP number %d. QP->SR = %d, local_wq_SR = %d\n",*local_wq_tail,qp_num,wq->SR,*local_wq_SR);
 
 #ifdef DEBUG_PERF_RMC
@@ -782,16 +781,8 @@ int main(int argc, char **argv)
                       *local_cq_head = 0;
                       *local_cq_SR ^= 1;
                   }
-              } else if (curr->op == 's') {
-                  // rmc send. mark WQ as processed but no CQ yet
-                  // (that's created on receiving something through rmc->rmc socket)
-                  *local_wq_tail += 1;
-                  if (*local_wq_tail >= MAX_NUM_WQ) {
-                      *local_wq_tail = 0;
-                      *local_wq_SR ^= 1;
-                  }
-              } else if (curr->op == 'g') {
-                  // rmc receive. unmark WQ as valid, to reuse
+              } else if (curr->op == 's' || curr->op == 'g') {
+                  // rmc send/recv. mark WQ as processed
                   *local_wq_tail += 1;
                   if (*local_wq_tail >= MAX_NUM_WQ) {
                       *local_wq_tail = 0;
@@ -836,7 +827,7 @@ int main(int argc, char **argv)
                   int footer_offset = nrecvd - HEADER_DATA_BYTES;
                   char dmux = *((char*)rbuf + footer_offset);
                   uint8_t sending_qp = *((uint8_t*)rbuf + footer_offset+1);
-                  uint8_t recv_slot = *((uint8_t*)rbuf + footer_offset+2);
+                  uint8_t slot_idx_from_socket = *((uint8_t*)rbuf + footer_offset+2);
 #ifdef PRINT_BUFS
                   DLog("Printing RPC Buffer after receive.\n");
                   print_cbuf( (char*)rbuf, nrecvd );
@@ -844,6 +835,7 @@ int main(int argc, char **argv)
                   switch( dmux )  {
                       case 's':
                           {
+                              uint8_t recv_slot = slot_idx_from_socket;
                               // copy tmp buf into actual recv slot (this is emulated
                               // and does not represent modelled zero-copy hardware)
                               char* recv_slot_ptr = recv_slots[i]  // base
@@ -851,6 +843,10 @@ int main(int argc, char **argv)
                               memcpy((void*) recv_slot_ptr,(void*)rbuf,nrecvd);
                               uint8_t qp_to_terminate = get_server_qp_rrobin();
                               cq = cqs[qp_to_terminate];
+                              while ( !cq->connected ) {
+                                  qp_to_terminate = get_server_qp_rrobin();
+                                  cq = cqs[qp_to_terminate];
+                              }
                               uint8_t* local_cq_head = &(local_CQ_heads[qp_to_terminate]);
                               uint8_t* local_cq_SR = &(local_CQ_SRs[qp_to_terminate]);
                               cq->q[*local_cq_head].SR = *local_cq_SR;
@@ -875,29 +871,22 @@ int main(int argc, char **argv)
                           }
                       case 'g':
                           {
-                              // TODO: TODO: TODO:
-                              // - how to re-use/signal SRQ entry on return?
-                              // - for now just re-mark it as free
-                              cq = cqs[sending_qp];
-                              uint8_t* local_cq_head = &(local_CQ_heads[sending_qp]);
-                              uint8_t* local_cq_SR = &(local_CQ_SRs[sending_qp]);
-                              cq->q[*local_cq_head].SR = *local_cq_SR;
-                              cq->q[*local_cq_head].sending_nid = sending_qp;
-                              DLog("Received rpc RETURN (\'g\') at rmc #%d. Send-side QP info is:\n"
-                                      "\t{ sending_qp : %d },\n"
-                                      "\t{ local_cq_head : %d },\n"
-                                      "\t{ QP[%d]->SR : %d },\n"
-                                      "\t{ local_cq_SR : %d },\n"
-                                      "\t{ CQ->SR : %d },\n",
-                                      this_nid,sending_qp,*local_cq_head,
-                                      sending_qp,cq->q[*local_cq_head].SR,
-                                      *local_cq_SR,
-                                      cq->SR);
-                              *local_cq_head += 1;
-                              if(*local_cq_head >= MAX_NUM_WQ) {
-                                  *local_cq_head = 0;
-                                  *local_cq_SR ^= 1;
-                              }
+                              uint8_t slot_to_reuse = slot_idx_from_socket;
+                              DLog("Received rpc RECV (\'g\') at rmc #%d. Send-side QP info is:\n"
+                                      "\t{ sender's QP : %d },\n"
+                                      "\t{ slot_to_reuse : %d },\n",
+                                      this_nid, 
+                                      sending_qp,
+                                      slot_to_reuse);
+                              // Operations: invalidate send slots and avail-tracker
+                              send_slot_t* slots_from_node = (send_slot_t*)sslots[i];
+                              send_slot_t* reuseMe = (slots_from_node + slot_to_reuse);
+                              reuseMe->valid = 0;
+
+                              send_metadata_t* meta_from_node = (send_metadata_t*)avail_slots[i];
+                              send_metadata_t* meToo = (meta_from_node + slot_to_reuse);
+                              int old = meToo->valid.exchange(1);
+                              assert( old == 0 );
                               break;
                           }
                       default:

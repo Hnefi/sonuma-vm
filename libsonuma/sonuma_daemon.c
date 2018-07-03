@@ -158,7 +158,7 @@ void rmc_send(rmc_wq_t *wq, char *lbuff_ptr, int lbuff_offset, size_t size, int 
     DLog("[rmc_send] Entering rmc_send.");
 
     // setup send slot for RMC
-    send_slot->valid = true;
+    send_slot->valid = 1;
     send_slot->msg_size = size;
     send_slot->sending_qp = sending_qp;
 

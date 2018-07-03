@@ -39,7 +39,7 @@
 
 #include "sonuma.h"
 
-#define ITERS 1
+#define ITERS 32
 #define SLOT_SIZE 64
 #define OBJ_READ_SIZE 64
 #define CTX_0 0
@@ -174,17 +174,19 @@ int main(int argc, char **argv)
     }
 
     int available_slot_index = -1;
-    int diecount = 2;
+    int wait_count = 0;
     while( available_slot_index < 0 ) {
         send_metadata_t* ptr = (send_metadata_t*) (slot_metadata[target_nid]);
         available_slot_index = get_send_slot(ptr,MSGS_PER_PAIR);
         if( available_slot_index < 0 ) {
-            printf("All slots full, wait....\n");
+            printf("All slots full, wait #%d....\n",wait_count);
+            /*
             for(int slot_num = 0; slot_num < MSGS_PER_PAIR; slot_num++ ) {
                 printf("Slot num %d: Valid: %d, index: %d.\n",slot_num,ptr[slot_num].valid.load(),ptr[slot_num].sslot_index);
             }
-            diecount--;
-            if(diecount < 0) { printf("ROMES, something's horribly wrong....\n"); exit(1); }
+            */
+            wait_count++;
+            if(wait_count > 100) { printf("ROMES, something's horribly wrong....\n"); exit(1); }
         }
     }
     send_slot_t* target_node_slots = (send_slot_t*)sslots[target_nid];
