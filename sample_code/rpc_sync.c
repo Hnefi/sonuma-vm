@@ -174,7 +174,7 @@ int main(int argc, char **argv)
     }
 
     int available_slot_index = -1;
-    int diecount = 32;
+    int diecount = 2;
     while( available_slot_index < 0 ) {
         send_metadata_t* ptr = (send_metadata_t*) (slot_metadata[target_nid]);
         int available_slot_index = get_send_slot(ptr,MSGS_PER_PAIR);
