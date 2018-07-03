@@ -647,7 +647,6 @@ int main(int argc, char **argv)
           nodetmp[i].valid = true;
           nodetmp[i].sslot_index = tmp;
       }
-
       // make a tmp buffer to hold RPC arguments
       tmp_copies[i] = (char*)calloc(MAX_RPC_BYTES,sizeof(char));
   }
