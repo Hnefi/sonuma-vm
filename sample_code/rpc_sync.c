@@ -116,10 +116,11 @@ int main(int argc, char **argv)
           printf("Failed to allocate slot metadata for node %d\n",i);
           return -1;
       }
-      send_metadata_t* ptr = (send_metadata_t*) (slot_metadata[i]);
+      /*send_metadata_t* ptr = (send_metadata_t*) (slot_metadata[i]);
       for(int slot_num = 0; slot_num < MSGS_PER_PAIR; slot_num++ ) {
           printf("Slot num %d: Valid: %d, index: %d.\n",slot_num,ptr[slot_num].valid.load(),ptr[slot_num].sslot_index);
       }
+      */
   }
 
   char fmt[25];
@@ -189,6 +190,7 @@ int main(int argc, char **argv)
     }
     send_slot_t* target_node_slots = (send_slot_t*)sslots[target_nid];
     send_slot_t* my_slot = (target_node_slots + available_slot_index);
+    printf("Got slot index: %d, and send slots pointer: %p\n",available_slot_index,my_slot);
 
     start = rdtsc();
     rmc_send(wq, (char*)lbuff, lbuff_slot, OBJ_READ_SIZE,target_nid,0 /* sender qp */,my_slot,available_slot_index);
