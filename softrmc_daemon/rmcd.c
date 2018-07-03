@@ -641,11 +641,6 @@ int main(int argc, char **argv)
       sprintf(fmt,"avail_slots_%d.txt",i);
       local_buf_alloc(&(avail_slots[i]),fmt,n_avail_slots_pages);
       // for every node pair, init send slots metadata
-      /*
-      //    FIXME: set ONE DAMNED BOOL THERE
-      bool* tmp = (bool*)(avail_slots[i]);
-      *tmp = true;
-      */
       send_metadata_t* nodetmp = (send_metadata_t*)(avail_slots[i]);
       for(int tmp = 0; tmp < MSGS_PER_PAIR; tmp++) {
           nodetmp[tmp].valid = true;
