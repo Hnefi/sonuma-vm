@@ -115,12 +115,14 @@ int main(int argc, char **argv)
       if(kal_reg_lbuff(fd,&(slot_metadata[i]),fmt,n_avail_slots_pages) < 0) {
           printf("Failed to allocate slot metadata for node %d\n",i);
           return -1;
-      }      
-      uint8_t* tptr = slot_metadata[i];
-      send_metadata_t* node_meta_ptr = (send_metadata_t*)tptr;
+      }
+      bool* tptr = (bool*) slot_metadata[i];
+      printf("FIRST BOOLEAN:%d\n",*tptr);
+      /*
       for(int tmp = 0; tmp < MSGS_PER_PAIR; tmp++) {
           printf("Valid: %d, Index: %d\n",node_meta_ptr[tmp].valid.load(), node_meta_ptr[tmp].sslot_index);
       }
+      */
   }
 
   char fmt[25];
