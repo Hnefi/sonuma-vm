@@ -742,8 +742,8 @@ int main(int argc, char **argv)
                           unsigned nbytes = send(sinfo[receiver].fd, (char *)(local_buffer + curr->buf_offset), curr->length, 0); // block to ensure WQ entry is processed
                           if( nbytes <= 0 ) {
                               perror("[rmc_rpc] send failed, w. error:");
-                          } else 
-                              printf("Sent %d rpc bytes to node %d....\n",nbytes,receiver);
+                          } else ;
+                              //printf("Sent %d rpc bytes to node %d....\n",nbytes,receiver);
                           break;
                       }
                   case 'a': ;

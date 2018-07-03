@@ -166,7 +166,7 @@ int main(int argc, char **argv)
   
   for(size_t i = 0; i < num_iter; i++) {
     ctx_offset = (i * PAGE_SIZE) % ctx_size;
-    lbuff_slot = (i * (OBJ_READ_SIZE+3)) % (PAGE_SIZE - (OBJ_READ_SIZE+3)); // 64B+1 increments, wrap-around after that much
+    lbuff_slot = (i * (OBJ_READ_SIZE+HEADER_DATA_BYTES)) % (PAGE_SIZE - (OBJ_READ_SIZE+HEADER_DATA_BYTES)); // 64B+1 increments, wrap-around after that much
 
     // write a test string into lbuff
     for(int o = 0; o < 12; o++) {
