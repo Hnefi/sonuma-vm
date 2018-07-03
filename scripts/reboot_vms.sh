@@ -15,7 +15,7 @@ declare -a IPS
 FILES=$(ls $BOOT_CFG_DIR/*_boot.cfg)
 let count=0
 for i in $FILES; do 
-    #echo "create $i"; 
+    echo "create $i"; 
     xl create $i;
     IP_OF_GUEST=$(grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" < $i);
     IPS+=($IP_OF_GUEST);
