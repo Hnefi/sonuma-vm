@@ -833,7 +833,7 @@ int main(int argc, char **argv)
               if( nrecvd > 0 ) {
                   printf("[rmc_poll] got something non-zero, nbytes = %d\n",nrecvd);
                   // check whether it's an rpc send, or recv to already sent rpc
-                  int footer_offset = nrecvd-2;
+                  int footer_offset = nrecvd - HEADER_DATA_BYTES;
                   char dmux = *((char*)rbuf + footer_offset);
                   uint8_t sending_qp = *((uint8_t*)rbuf + footer_offset+1);
                   uint8_t recv_slot = *((uint8_t*)rbuf + footer_offset+2);
@@ -841,7 +841,7 @@ int main(int argc, char **argv)
                   DLog("Printing RPC Buffer after receive.\n");
                   print_cbuf( (char*)rbuf, nrecvd );
 #endif
-                  switch( dmux ) {
+                  switch( dmux )  {
                       case 's':
                           {
                               // copy tmp buf into actual recv slot (this is emulated
