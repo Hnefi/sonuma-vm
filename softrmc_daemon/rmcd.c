@@ -643,13 +643,10 @@ int main(int argc, char **argv)
       local_buf_alloc(&(avail_slots[i]),fmt,n_avail_slots_pages);
       // for every node pair, init send slots metadata
       send_metadata_t* nodetmp = (send_metadata_t*)(avail_slots[i]);
-      nodetmp->valid = true;
-      nodetmp->sslot_index = 0;
-      /*for(int tmp = 0; tmp < MSGS_PER_PAIR; tmp++) {
+      for(int tmp = 0; tmp < MSGS_PER_PAIR; tmp++) {
           nodetmp[tmp].valid = true;
           nodetmp[tmp].sslot_index = tmp;
       }
-      */
       // make a tmp buffer to hold RPC arguments
       tmp_copies[i] = (char*)calloc(MAX_RPC_BYTES,sizeof(char));
   }
