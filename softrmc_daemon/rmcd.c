@@ -739,9 +739,12 @@ int main(int argc, char **argv)
                           DLog("Printing RPC Buffer before send.\n");
                           print_cbuf( (char*)(local_buffer + curr->buf_offset), curr->length);
 #endif
-                          unsigned nbytes = send(sinfo[receiver].fd, (char *)(local_buffer + curr->buf_offset), curr->length, 0); // block to ensure WQ entry is processed
+                          // FIXME: in post-ASPLOS refactor, make this variable length (need to implement your own header formt)
+                          unsigned nbytes = send(sinfo[receiver].fd, (char *)(local_buffer + curr->buf_offset), MAX_RPC_BYTES, 0); // block to ensure WQ entry is processed
                           if( nbytes <= 0 ) {
                               perror("[rmc_rpc] send failed, w. error:");
+                          } else if ( nbytes < MAX_RPC_BYTES ) {
+                              printf("Only sent %d of %d bytes.... Do something about it!!!!\n",nbytes,MAX_RPC_BYTES);
                           } else ;
                               //printf("Sent %d rpc bytes to node %d....\n",nbytes,receiver);
                           break;
