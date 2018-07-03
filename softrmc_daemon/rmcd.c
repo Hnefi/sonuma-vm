@@ -61,9 +61,9 @@ static char *ctx[MAX_NODE_CNT];
 static int node_cnt, this_nid;
 
 // rpc messaging domain data
-static char* recv_slots[MAX_NODE_CNT];
-static char* sslots[MAX_NODE_CNT];
-static char* avail_slots[MAX_NODE_CNT];
+static char** recv_slots;
+static char** sslots;
+static char** avail_slots;
 
 #define MIN_RPCBUF_ENTRIES 16
 static std::bitset<16> occupied_srq_entries; // FIXME: remove
@@ -620,6 +620,10 @@ int main(int argc, char **argv)
 
   // allocate messaging domain metadata
   tmp_copies = (char**) calloc(node_cnt,sizeof(char*));
+  recv_slots = (char**) calloc(node_cnt,sizeof(char*));
+  sslots = (char**) calloc(node_cnt,sizeof(char*));
+  avail_slots = (char**) calloc(node_cnt,sizeof(char*));
+
   size_t recv_buffer_size = (MAX_RPC_BYTES ) * MSGS_PER_PAIR ;
   size_t n_rbuf_pages = (recv_buffer_size / PAGE_SIZE) + 1;
 
@@ -637,7 +641,8 @@ int main(int argc, char **argv)
       sprintf(fmt,"avail_slots_%d.txt",i);
       local_buf_alloc(&avail_slots[i],fmt,n_avail_slots_pages);
       // for every node pair, init send slots metadata
-      send_metadata_t* nodetmp = (send_metadata_t*) avail_slots[i];
+      char* node_metadata_ptr = avail_slots[i];
+      send_metadata_t* nodetmp = (send_metadata_t*) node_metadata_ptr;
       for(int tmp = 0; tmp < MSGS_PER_PAIR; tmp++) {
           nodetmp[i].valid = true;
           nodetmp[i].sslot_index = tmp;
@@ -912,6 +917,7 @@ int main(int argc, char **argv)
   // free memory
   free(wqs);
   free(cqs);
+  free(local_buffers);
   free(local_WQ_tails);
   free(local_WQ_SRs);
   free(local_CQ_heads);
@@ -922,6 +928,9 @@ int main(int argc, char **argv)
       free(tmp_copies[i]);
   }
   free(tmp_copies);
+  free(recv_slots);
+  free(sslots);
+  free(avail_slots);
   return 0;
 }
 
