@@ -23,6 +23,7 @@ for i in $FILES; do
     DOMID_OF_GUEST=$(xl domid $NAME_OF_GUEST);
     echo "$count:$IP_OF_GUEST:$DOMID_OF_GUEST" >> servers.txt;
     ((count+=1))
+    echo ${IPS[@]};
 done
 
 sleep 30

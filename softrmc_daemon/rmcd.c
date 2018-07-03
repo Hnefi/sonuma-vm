@@ -735,14 +735,15 @@ int main(int argc, char **argv)
                       {
                           // send rmc->rmc rpc
                           int receiver = curr->nid;
-#if 0
+#ifdef PRINT_BUFS
                           DLog("Printing RPC Buffer before send.\n");
                           print_cbuf( (char*)(local_buffer + curr->buf_offset), curr->length);
 #endif
                           unsigned nbytes = send(sinfo[receiver].fd, (char *)(local_buffer + curr->buf_offset), curr->length, 0); // block to ensure WQ entry is processed
-                          if( nbytes < 0 ) {
+                          if( nbytes <= 0 ) {
                               perror("[rmc_rpc] send failed, w. error:");
-                          }  
+                          } else 
+                              printf("Sent %d rpc bytes to node %d....\n",nbytes,receiver);
                           break;
                       }
                   case 'a': ;
