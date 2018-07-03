@@ -643,7 +643,7 @@ int main(int argc, char **argv)
       // for every node pair, init send slots metadata
       send_metadata_t* nodetmp = (send_metadata_t*)(avail_slots[i]);
       for(int tmp = 0; tmp < MSGS_PER_PAIR; tmp++) {
-          nodetmp[tmp].valid = true;
+          nodetmp[tmp].valid = 1;
           nodetmp[tmp].sslot_index = tmp;
       }
       // make a tmp buffer to hold RPC arguments

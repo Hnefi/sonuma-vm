@@ -114,9 +114,9 @@ static inline int get_send_slot(send_metadata_t* slot_data,size_t len)
 { 
     for(size_t i = 0; i < len; i++) {
         printf("Reading slot_data.valid = %d\n",slot_data[i].valid.load());
-        bool old = slot_data[i].valid.exchange(false);
+        int old = slot_data[i].valid.exchange(0);
         printf("Exchange returned = %d\n",old);
-        if( old == true ) { // got slot
+        if( old ) { // got slot
             return slot_data[i].sslot_index;
         }
     }

@@ -106,7 +106,7 @@ typedef struct sslot {
 } send_slot_t;
 
 typedef struct send_slot_metadata {
-    std::atomic<bool> valid;
+    std::atomic<int> valid;
     unsigned sslot_index;
 } send_metadata_t;
 
