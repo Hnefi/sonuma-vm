@@ -116,13 +116,6 @@ int main(int argc, char **argv)
           printf("Failed to allocate slot metadata for node %d\n",i);
           return -1;
       }
-      bool* tptr = (bool*) slot_metadata[i];
-      printf("FIRST BOOLEAN:%d\n",*tptr);
-      /*
-      for(int tmp = 0; tmp < MSGS_PER_PAIR; tmp++) {
-          printf("Valid: %d, Index: %d\n",node_meta_ptr[tmp].valid.load(), node_meta_ptr[tmp].sslot_index);
-      }
-      */
   }
 
   char fmt[25];

@@ -111,7 +111,7 @@ int kal_reg_lbuff(int fd, uint8_t **buff_ptr, const char* lb_name, uint32_t num_
       return -1;
     }
     
-    //memset(*buff_ptr, 0, num_pages*4096);
+    //memset(*buff_ptr, 0, num_pages*4096); // MSUTHERL: I CAN'T BELIEVE THIS WAS THE PROBLEM THE WHOLE TIME
   } else {
     printf("[kal_ref_lbuff] local buffer has been allocated, return\n");
     return -1;

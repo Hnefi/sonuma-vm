@@ -6,7 +6,6 @@ BOOT_CFG_DIR=$1
 OLD_DOMAINS=$(xl list | sed -rn 's/^\w+\s+([0-9]+).*/\1/p')
 echo "Destroying old guests...."
 for i in $OLD_DOMAINS; do xl destroy $i; done
-#for i in $OLD_DOMAINS; do echo "dom $i"; done
 
 sleep 5
 
