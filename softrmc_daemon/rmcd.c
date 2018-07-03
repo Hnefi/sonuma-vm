@@ -858,8 +858,9 @@ int main(int argc, char **argv)
                                       "\t{ local_cq_head : %d },\n"
                                       "\t{ sender's QP : %d },\n"
                                       "\t{ recv_slot : %d },\n",
-                                      this_nid, qp_to_terminate,*local_cq_head,
+                                      this_nid, 
                                       qp_to_terminate,
+                                      *local_cq_head,
                                       sending_qp,
                                       recv_slot );
                               *local_cq_head += 1;
