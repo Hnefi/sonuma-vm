@@ -644,8 +644,8 @@ int main(int argc, char **argv)
       char* node_metadata_ptr = avail_slots[i];
       send_metadata_t* nodetmp = (send_metadata_t*) node_metadata_ptr;
       for(int tmp = 0; tmp < MSGS_PER_PAIR; tmp++) {
-          nodetmp[i].valid = true;
-          nodetmp[i].sslot_index = tmp;
+          nodetmp[tmp].valid = true;
+          nodetmp[tmp].sslot_index = tmp;
       }
       // make a tmp buffer to hold RPC arguments
       tmp_copies[i] = (char*)calloc(MAX_RPC_BYTES,sizeof(char));
