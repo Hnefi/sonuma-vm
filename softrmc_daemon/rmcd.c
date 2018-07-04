@@ -872,7 +872,9 @@ int main(int argc, char **argv)
               } else if( nrecvd < 0 ) {
                   continue;
                   //perror("[rmc_poll] Failed on recv(...) waiting for first byte...\n");
-              } else ;
+              } else { 
+                  perror("[rmc_poll] Failed on recv(...) waiting for first byte...\n");
+              }
 
               // otherwise, we now have a full header
               assert( (nrecvd + rec_round_2) >= RMC_Message::getLenParamBytes() );

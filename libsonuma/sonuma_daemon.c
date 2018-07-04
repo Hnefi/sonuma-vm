@@ -181,6 +181,8 @@ void rmc_send(rmc_wq_t *wq, char *lbuff_ptr, int lbuff_offset, size_t size, int 
     wq->q[wq_head].nid = snid;
     wq->q[wq_head].valid = 1;
     wq->q[wq_head].SR = wq->SR;
+    // Msutherl:
+    wq->q[wq_head].slot_idx = slot_idx;
 
     wq->head =  wq->head + 1;
     //check if WQ reached its end
