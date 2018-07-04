@@ -869,14 +869,12 @@ int main(int argc, char **argv)
                   if( rec_round_2 < 0 ) {
                       perror("[rmc_poll] Failed on recv(...) waiting for rest of length\n");
                   }
-              } else if ( nrecvd == 0 ) { 
-                  continue; 
               } else if( nrecvd < 0 ) {
-                  perror("[rmc_poll] Failed on recv(...) waiting for first byte...\n");
+                  //perror("[rmc_poll] Failed on recv(...) waiting for first byte...\n");
               } else ;
 
               // otherwise, we now have a full header
-              assert( (nrecvd + rec_round_2) == RMC_Message::getLenParamBytes() );
+              assert( (nrecvd + rec_round_2) >= RMC_Message::getLenParamBytes() );
 
               // read it and figure out how much else to wait for
               uint32_t msgLengthReceived = ntohl(*((uint32_t*)rbuf));
