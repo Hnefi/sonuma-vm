@@ -6,7 +6,7 @@
  *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
- *
+
  * * Redistributions of source code must retain the above copyright notice,
  *   this list of conditions and the following disclaimer.
  * * Redistributions in binary form must reproduce the above copyright notice,
@@ -16,7 +16,7 @@
  *   nor the names of its contributors may be used to endorse or promote
  *   products derived from this software without specific prior written
  *   permission.
- *
+
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -30,85 +30,45 @@
  */
 
 /*
- *  soNUMA library functions
+ *  Header structure for a soNUMA message between RMCs.
  */
 
-#ifndef H_RMC_DEFINES
-#define H_RMC_DEFINES
+#ifndef _SON_MSG_H
+#define _SON_MSG_H
+#include "RMCdefines.h"
+#include <vector>
 
-#define MAX_NUM_WQ 64
+#ifdef __CPLUSPLUS
+extern "C" {
+#endif
 
-#define RPC_DATA_PAYLOAD 2048
-#define HEADER_DATA_BYTES 3
-#define MAX_RPC_BYTES (RPC_DATA_PAYLOAD + HEADER_DATA_BYTES)
+class RMC_Message {
+    // all data in here is uint32 and uint16 (unsigned long & unsigned short)
+    // to use the htonl(...) and htons(...) functions
+    public:
+        uint32_t message_len; // 4B on wire
+        char msg_type;        // 1B on wire
+        uint16_t senders_qp;  // 2B
+        uint16_t slot;        // 2B
+        std::vector<char> payload; // max 2048B
 
-#define KAL_REG_WQ      1
-#define KAL_UNREG_WQ    6
-#define KAL_REG_CQ      5
-#define KAL_REG_CTX     3
-#define KAL_PIN_BUFF    4
-#define KAL_PIN         14
+        // THINGS NOT SENT ON WIRES.
+        uint32_t payload_len; 
+        static uint32_t total_header_bytes;
 
-#define PAGE_SIZE 4096
-#define MSGS_PER_PAIR 16
+        RMC_Message(uint8_t aQP, uint8_t aSlot, char aType, char* aPayloadPtr,uint32_t payloadLen);
+        uint32_t getRequiredLenBytes();
+        void pack(char* buf);
 
-#include <atomic> // Msutherl
-#include <cstdio> // Msutherl
+        static uint32_t getTotalHeaderBytes() { return total_header_bytes; }
+        static uint32_t getMessageHeaderBytes() { return total_header_bytes-getLenParamBytes(); }
+        static uint32_t getLenParamBytes() { return sizeof(uint32_t); }
+};
 
-typedef struct wq_entry {
-  uint8_t op;
-  volatile uint8_t SR;
-    //set with a new WQ entry, unset when entry completed.
-    //Required for pipelining async ops.
-  volatile uint8_t valid;
-  uint64_t buf_addr;
-  uint64_t buf_offset;
-  uint8_t cid;
-  uint16_t nid;
-  uint64_t offset;
-  uint64_t length;
-  /* Msutherl: */
-    uint8_t slot_idx;
-} wq_entry_t;
+RMC_Message unpackToRMC_Message(char* aNetworkBuffer);
 
-typedef struct cq_entry { 
-  volatile uint8_t SR;
-  volatile uint8_t tid;
-  /* Msutherl: */
-      uint8_t sending_nid;
-      uint8_t sending_qp;
-      uint8_t slot_idx;
-} cq_entry_t;
+#ifdef __CPLUSPLUS
+}
+#endif
 
-typedef struct rmc_wq {
-  wq_entry_t q[MAX_NUM_WQ];
-  uint8_t head;
-  volatile uint8_t SR;
-  volatile bool connected;
-} rmc_wq_t;
-
-typedef struct rmc_cq {
-  cq_entry_t q[MAX_NUM_WQ];
-  uint8_t tail;
-  volatile uint8_t SR;
-  volatile bool connected;
-} rmc_cq_t;
-
-typedef struct qp_info {
-  int node_cnt;
-  int this_nid;
-} qp_info_t;
-
-typedef struct sslot {
-    volatile bool valid;
-    uint64_t msg_size;
-    uint8_t sending_qp;
-    uint8_t wq_entry_idx;
-} send_slot_t;
-
-typedef struct send_slot_metadata {
-    std::atomic<int> valid;
-    unsigned sslot_index;
-} send_metadata_t;
-
-#endif /* H_RMC_DEFINES */
+#endif // #ifndef _SON_MSG_H

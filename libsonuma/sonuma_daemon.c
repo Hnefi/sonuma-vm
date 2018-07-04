@@ -167,10 +167,11 @@ void rmc_send(rmc_wq_t *wq, char *lbuff_ptr, int lbuff_offset, size_t size, int 
     send_slot->wq_entry_idx = wq_head;
     wq->q[wq_head].buf_addr = (uint64_t)lbuff_ptr;
     wq->q[wq_head].buf_offset = lbuff_offset;
+    /*
     *(lbuff_ptr + (lbuff_offset+size)) = 's';
     *(lbuff_ptr + (lbuff_offset+size+1)) = sending_qp;
     *(lbuff_ptr + (lbuff_offset+size+2)) = slot_idx;
-    size += 3; // 3 bytes more to pass the character 's', send QP, and send slot id
+    */
 #ifdef PRINT_BUFS
     print_cbuf( (char*)lbuff_ptr , size );
 #endif
@@ -197,11 +198,11 @@ void rmc_recv(rmc_wq_t *wq, char* lbuff_ptr,int lbuff_offset,size_t size,int sni
     DLog("[rmc_recv] rmc_recv called.");
 
     while (wq->q[wq_head].valid) {} //wait for WQ head to be ready
-    
+    /*
     *(lbuff_ptr + (lbuff_offset+size)) = 'g';
     *(lbuff_ptr + (lbuff_offset+size+1)) = sending_qp;
     *(lbuff_ptr + (lbuff_offset+size+2)) = slot_idx;
-    size += 3; // 3 bytes more to pass the character 'g' , send qp id, send slot to reuse
+    */
 #ifdef PRINT_BUFS
     print_cbuf( (char*)lbuff_ptr , size );
 #endif

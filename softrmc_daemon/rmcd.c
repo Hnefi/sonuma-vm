@@ -46,6 +46,7 @@
 #include <algorithm>
 
 #include "rmcd.h"
+#include "son_msg.h"
 
 using namespace std;
 
@@ -65,8 +66,23 @@ static char** recv_slots;
 static char** sslots;
 static char** avail_slots;
 
-#define MIN_RPCBUF_ENTRIES 16
-static std::bitset<16> occupied_srq_entries; // FIXME: remove
+// Implementation to return str rep. of WQ entry
+// FIXME: assumes buffer has enough space (please buffer-overflow attack this!)
+int stringify_wq_entry(wq_entry_t* entry,char* buf)
+{
+    return sprintf(buf,
+            "{ Operation = %c,"
+            " SR = %u,"
+            " Valid = %u,"
+            " LBuf_Addr = %#lx,"
+            " LBuf_Offset = %#lx,"
+            " Node ID = %d,"
+            " CTlx Offset = %#lx,"
+            " Read Length = %d }\n"
+            , entry->op, entry->SR, entry->valid, entry->buf_addr, entry->buf_offset,
+            entry->nid, entry->offset, entry->length);
+}
+
 
 int count_valid_cq_entries(volatile rmc_cq_t* cq, int8_t local_cq_head)
 {
@@ -83,16 +99,6 @@ int count_valid_cq_entries(volatile rmc_cq_t* cq, int8_t local_cq_head)
     }
     assert( retCount <= MAX_NUM_WQ );
     return retCount;
-}
-
-// Msutherl: returns to SRQ for RMC to place data into
-int get_srq_entry() {
-    // find smallest SRQ index (closest to 0) that's available
-    std::bitset<MIN_RPCBUF_ENTRIES> tmp = occupied_srq_entries;
-    int off = 0;
-    while( off < tmp.size() && tmp.test(off) ) { ++off; }
-    return off;
-    // FIXME: this will alwaqys return a value, case where SRQ full is not handled
 }
 
 // Msutherl: returns qp number for RMC on server-side to terminate msg. into
@@ -123,6 +129,24 @@ void print_cbuf(char* buf, size_t len)
     for(int i = 0; i < len;i++) {
         printf("Buffer[%d] = %c\n",i,buf[i]);
     }
+}
+
+// Taken from Beej's guide to Network Programming:
+// http://beej.us/guide/bgnet/html/multi/advanced.html
+int sendall(int sock_fd, char* buf, unsigned* bytesToSend)
+{
+    int total = 0;
+    int bytesLeft = *bytesToSend;
+    int n;
+
+    while( total < *bytesToSend ) {
+        n = send(sock_fd, buf+total, bytesLeft, 0);
+        if( n == -1 ) break;
+        total += n;
+        bytesLeft -= n;
+    }
+    *bytesToSend = total; // actual number of bytes sent goes here
+    return n==-1?-1:0;
 }
 
 int alloc_wq(rmc_wq_t **qp_wq, int wq_id)
@@ -624,7 +648,7 @@ int main(int argc, char **argv)
   sslots = (char**) calloc(node_cnt,sizeof(char*));
   avail_slots = (char**) calloc(node_cnt,sizeof(char*));
 
-  size_t recv_buffer_size = (MAX_RPC_BYTES ) * MSGS_PER_PAIR ;
+  size_t recv_buffer_size = (MAX_RPC_BYTES) * MSGS_PER_PAIR ;
   size_t n_rbuf_pages = (recv_buffer_size / PAGE_SIZE) + 1;
 
   size_t send_slots_size = MSGS_PER_PAIR * sizeof(send_slot_t);
@@ -647,7 +671,7 @@ int main(int argc, char **argv)
           nodetmp[tmp].sslot_index = tmp;
       }
       // make a tmp buffer to hold RPC arguments
-      tmp_copies[i] = (char*)calloc(MAX_RPC_BYTES,sizeof(char));
+      tmp_copies[i] = (char*)calloc(MAX_RPC_BYTES + RMC_Message::getTotalHeaderBytes(),sizeof(char));
   }
 
  //create the global address space
@@ -739,14 +763,25 @@ int main(int argc, char **argv)
                           DLog("Printing RPC Buffer before send.\n");
                           print_cbuf( (char*)(local_buffer + curr->buf_offset), curr->length);
 #endif
-                          // FIXME: in post-ASPLOS refactor, make this variable length (need to implement your own header formt)
-                          unsigned nbytes = send(sinfo[receiver].fd, (char *)(local_buffer + curr->buf_offset), MAX_RPC_BYTES, 0); // block to ensure WQ entry is processed
-                          if( nbytes <= 0 ) {
+                          // 1) Take QP metadata and create RMC_Message class
+                          // 2) Serialize/pack
+                          // 3) sendall() to push all of the bytes out
+                          RMC_Message msg((uint8_t)qp_num,(uint8_t)curr->slot_idx,curr->op,(local_buffer + (curr->buf_offset)),curr->length);
+                          uint32_t bytesToSend = msg.getRequiredLenBytes() + msg.getLenParamBytes();
+                          uint32_t copy = bytesToSend;
+                          char* packedBuffer = new char[bytesToSend];
+                          msg.pack(packedBuffer);
+#ifdef PRINT_BUFS
+                          DLog("Printing RPC Buffer after pack.\n");
+                          print_cbuf(packedBuffer, bytesToSend);
+#endif
+                          unsigned retval = sendall(sinfo[receiver].fd,packedBuffer,&bytesToSend);
+                          if( retval < 0 ) {
                               perror("[rmc_rpc] send failed, w. error:");
-                          } else if ( nbytes < MAX_RPC_BYTES ) {
-                              printf("Only sent %d of %d bytes.... Do something about it!!!!\n",nbytes,MAX_RPC_BYTES);
+                          } else if ( bytesToSend < copy) {
+                              printf("Only sent %d of %d bytes.... Do something about it!!!!\n",bytesToSend,copy);
                           } else ;
-                              //printf("Sent %d rpc bytes to node %d....\n",nbytes,receiver);
+                          delete packedBuffer;
                           break;
                       }
                   case 'a': ;
@@ -821,30 +856,50 @@ int main(int argc, char **argv)
       }// end loop over qps
 
       // Msutherl: check all sockets (sinfos) for outstanding rpc
+      uint32_t max_single_msg_size = MAX_RPC_BYTES + RMC_Message::getTotalHeaderBytes();
       for(i = 0; i < node_cnt; i++) {
           if( i != this_nid ) {
               char* rbuf = tmp_copies[i];
-              int nrecvd = recv(sinfo[i].fd, rbuf, MAX_RPC_BYTES, MSG_DONTWAIT);
+              // recv 4 bytes (header size) 
+              int nrecvd = recv(sinfo[i].fd, rbuf, RMC_Message::getLenParamBytes() , MSG_DONTWAIT);
+              int rec_round_2 = 0;
+              if( nrecvd > 0 && nrecvd < RMC_Message::getLenParamBytes() ) { 
+                  DLog("[rmc_poll] got partial len from header, nbytes = %d\n",nrecvd);
+                  rec_round_2 = recv(sinfo[i].fd, (rbuf+nrecvd), RMC_Message::getLenParamBytes() - nrecvd , 0); // block to get the rest of the header
+                  if( rec_round_2 < 0 ) {
+                      perror("[rmc_poll] Failed on recv(...) waiting for rest of length\n");
+                  }
+              } else if ( nrecvd == 0 ) { 
+                  continue; 
+              } else if( nrecvd < 0 ) {
+                  perror("[rmc_poll] Failed on recv(...) waiting for first byte...\n");
+              } else ;
+
+              // otherwise, we now have a full header
+              assert( (nrecvd + rec_round_2) == RMC_Message::getLenParamBytes() );
+
+              // read it and figure out how much else to wait for
+              uint32_t msgLengthReceived = ntohl(*((uint32_t*)rbuf));
+              DLog("Next msg will come with length: %d\n",msgLengthReceived);
+              nrecvd = recv(sinfo[i].fd, (rbuf + RMC_Message::getLenParamBytes()), msgLengthReceived, 0); // block to get it all
               if( nrecvd > 0 ) {
-                  printf("[rmc_poll] got something non-zero, nbytes = %d\n",nrecvd);
-                  // check whether it's an rpc send, or recv to already sent rpc
-                  int footer_offset = nrecvd - HEADER_DATA_BYTES;
-                  char dmux = *((char*)rbuf + footer_offset);
-                  uint8_t sending_qp = *((uint8_t*)rbuf + footer_offset+1);
-                  uint8_t slot_idx_from_socket = *((uint8_t*)rbuf + footer_offset+2);
+                  DLog("[rmc_poll] got rest of message, nbytes = %d\n",nrecvd);
 #ifdef PRINT_BUFS
-                  DLog("Printing RPC Buffer after receive.\n");
+                  DLog("Printing RPC Buffer after full message received.\n");
                   print_cbuf( (char*)rbuf, nrecvd );
 #endif
-                  switch( dmux )  {
+                  RMC_Message msgReceived = unpackToRMC_Message(rbuf);
+                  switch( msgReceived.msg_type ) {
+                    // check whether it's an rpc send, or recv to already sent rpc
                       case 's':
                           {
-                              uint8_t recv_slot = slot_idx_from_socket;
+                              uint16_t recv_slot = msgReceived.slot;
+                              uint16_t sending_qp = msgReceived.senders_qp;
                               // copy tmp buf into actual recv slot (this is emulated
                               // and does not represent modelled zero-copy hardware)
                               char* recv_slot_ptr = recv_slots[i]  // base
                                   + (recv_slot * (MAX_RPC_BYTES));
-                              memcpy((void*) recv_slot_ptr,(void*)rbuf,nrecvd);
+                              memcpy((void*) recv_slot_ptr,msgReceived.payload.data(),msgLengthReceived - RMC_Message::getMessageHeaderBytes());
                               uint8_t qp_to_terminate = get_server_qp_rrobin();
                               cq = cqs[qp_to_terminate];
                               while ( !cq->connected ) {
@@ -876,7 +931,8 @@ int main(int argc, char **argv)
                           }
                       case 'g':
                           {
-                              uint8_t slot_to_reuse = slot_idx_from_socket;
+                              uint16_t sending_qp = msgReceived.senders_qp;
+                              uint8_t slot_to_reuse = msgReceived.slot;
                               DLog("Received rpc RECV (\'g\') at rmc #%d. Send-side QP info is:\n"
                                       "\t{ sender's QP : %d },\n"
                                       "\t{ slot_to_reuse : %d },\n",
@@ -887,7 +943,6 @@ int main(int argc, char **argv)
                               send_slot_t* slots_from_node = (send_slot_t*)sslots[i];
                               send_slot_t* reuseMe = (slots_from_node + slot_to_reuse);
                               reuseMe->valid = 0;
-
                               send_metadata_t* meta_from_node = (send_metadata_t*)avail_slots[i];
                               send_metadata_t* meToo = (meta_from_node + slot_to_reuse);
                               int old = meToo->valid.exchange(1);
