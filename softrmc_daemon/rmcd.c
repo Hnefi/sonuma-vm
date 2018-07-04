@@ -870,6 +870,7 @@ int main(int argc, char **argv)
                       perror("[rmc_poll] Failed on recv(...) waiting for rest of length\n");
                   }
               } else if( nrecvd < 0 ) {
+                  continue;
                   //perror("[rmc_poll] Failed on recv(...) waiting for first byte...\n");
               } else ;
 
