@@ -174,7 +174,7 @@ int main(int argc, char **argv)
       rmc_poll_cq_rpc(cq, (char**)&recv_slots,&handler,&sending_nid,&sending_qp,&slot); // handler decrements --op_cnt
       printf("Returned from poll_cq_rpc...\n");
 
-      // enqueue receive in wq
+      // free slot on send-side
       rmc_recv(wq,(char*)lbuff,lbuff_slot,OBJ_READ_SIZE,sending_nid,sending_qp,slot);
 
       // copy into local buffer to send back.
@@ -186,10 +186,7 @@ int main(int argc, char **argv)
           *(lbuff+offset+idx) = transform[idx];
       }
 
-      // free slot on send-side
-      rmc_recv(wq,(char*)lbuff,lbuff_slot,OBJ_READ_SIZE,sending_nid,sending_qp,slot);
-
-      // now send something the other way
+      // now send lbuff the other way
       int available_slot_index = -1;
       int wait_count = 0;
       while( available_slot_index < 0 ) {
