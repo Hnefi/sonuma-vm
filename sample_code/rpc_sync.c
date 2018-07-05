@@ -203,18 +203,13 @@ int main(int argc, char **argv)
     rmc_send(wq, (char*)lbuff, lbuff_slot, OBJ_READ_SIZE,target_nid,0 /* sender qp */,my_slot,available_slot_index);
 
     end = rdtsc();
-    
-#ifdef TIME_OPS
-    printf("time to execute this op: %lf ns\n", ((double)end - start)/CPU_FREQ);
-#endif
-  }
-  
-  uint16_t sending_qp = 0, sending_nid = 0;
-  uint16_t slot;
-  rmc_poll_cq_rpc(cq, (char**)&recv_slots,&handler,&sending_nid,&sending_qp,&slot); // handler decrements --op_cnt
 
-  // free slot on send-side
-  rmc_recv(wq,(char*)lbuff,lbuff_slot,OBJ_READ_SIZE,sending_nid,sending_qp,slot);
- 
+    uint16_t sending_qp = 0, sending_nid = 0;
+    uint16_t slot;
+    rmc_poll_cq_rpc(cq, (char**)&recv_slots,&handler,&sending_nid,&sending_qp,&slot); // handler decrements --op_cnt
+
+    // free slot on send-side
+    rmc_recv(wq,(char*)lbuff,lbuff_slot,OBJ_READ_SIZE,sending_nid,sending_qp,slot);
+  }
   return 0;
 }
