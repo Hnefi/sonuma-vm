@@ -55,11 +55,11 @@ static __inline__ unsigned long long rdtsc(void)
 }
 
 void handler(uint16_t tid, char* recv_slot, cq_entry_t *head, void *owner) {
-    uint64_t offset_calc = head->slot_idx;
-    offset_calc *= MAX_RPC_BYTES;
+    //uint64_t offset_calc = head->slot_idx;
+    //offset_calc *= MAX_RPC_BYTES;
   printf("[rpc_handler]: Application got RPC from nid [%d] w. buf. string: %s\n",
           tid,
-          recv_slot + offset_calc);
+          recv_slot);
   op_cnt--;
 }
 
