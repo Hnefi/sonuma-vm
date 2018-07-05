@@ -29,30 +29,46 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _DEBUG_H_
-#define _DEBUG_H_
+/*
+ *  Header structure for a soNUMA message between RMCs.
+ */
 
-//#define DEBUG
+#ifndef _SON_MSG_H
+#define _SON_MSG_H
+#include "RMCdefines.h"
+#include <vector>
 
-#ifdef DEBUG_KMOD
-#define TRACE_ENTRY printk(KERN_CRIT "Entering %s\n", __func__)
-#define TRACE_ENTRY_ONCE do{ static int once = 1; if (once){ TRACE_ENTRY; once = 0; } }while(0)
-#define TRACE_EXIT  printk(KERN_CRIT "Exiting %s\n", __func__)
-#define DUMP_STACK_ONCE do{ static int once = 1; if (once){ dump_stack(); once = 0; } }while(0)
-#define DB( x, args... ) printk(KERN_CRIT "DEBUG: %s: line %d: " x, __FUNCTION__ , __LINE__ , ## args ); 
-#define DPRINTK( x, args... ) printk(KERN_CRIT "%s: line %d: " x, __FUNCTION__ , __LINE__ , ## args );
-#else
-
-#define TRACE_ENTRY do {} while (0)
-#define TRACE_ENTRY_ONCE do {} while (0)
-#define TRACE_EXIT  do {} while (0)
-#define DUMP_STACK_ONCE do{} while(0)
-#define DB(x, args...) do{} while(0)
-#define DPRINTK( x, args... )
+#ifdef __CPLUSPLUS
+extern "C" {
 #endif
 
-#define TRACE_ERROR printk(KERN_CRIT "ERROR: Exiting %s\n", __func__)
-#define EPRINTK( x, args... ) printk(KERN_CRIT "ERROR %s: line %d: " x, __FUNCTION__ , __LINE__ , ## args );
+class RMC_Message {
+    // all data in here is uint32 and uint16 (unsigned long & unsigned short)
+    // to use the htonl(...) and htons(...) functions
+    public:
+        uint32_t message_len; // 4B on wire
+        char msg_type;        // 1B on wire
+        uint16_t senders_qp;  // 2B
+        uint16_t slot;        // 2B
+        std::vector<char> payload; // max 2048B
 
-#endif /* _DEBUG_H_ */
+        // THINGS NOT SENT ON WIRES.
+        uint32_t payload_len; 
+        static uint32_t total_header_bytes;
 
+        RMC_Message(uint16_t aQP, uint16_t aSlot, char aType, char* aPayloadPtr,uint32_t payloadLen);
+        uint32_t getRequiredLenBytes();
+        void pack(char* buf);
+
+        static uint32_t getTotalHeaderBytes() { return total_header_bytes; }
+        static uint32_t getMessageHeaderBytes() { return total_header_bytes-getLenParamBytes(); }
+        static uint32_t getLenParamBytes() { return sizeof(uint32_t); }
+};
+
+RMC_Message unpackToRMC_Message(char* aNetworkBuffer);
+
+#ifdef __CPLUSPLUS
+}
+#endif
+
+#endif // #ifndef _SON_MSG_H

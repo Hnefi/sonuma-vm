@@ -50,7 +50,7 @@
 #include "RMCdefines.h"
 #define RMC_DEV "/dev/sonuma_rmc"
 
-#ifdef DEBUG
+#ifdef DEBUG_LIBSONUMA
 #define DLog(M, ...) fprintf(stdout, "DEBUG %s:%d: " M "\n", __FILE__, __LINE__, ##__VA_ARGS__)
 #else
 #define DLog(M, ...)
@@ -63,7 +63,7 @@
 #endif
 
 typedef void (async_handler)(uint8_t tid, wq_entry_t *head, void *owner);
-typedef void (rpc_handler)(uint16_t sending_nid, char* srq, cq_entry_t *head, void *owner);
+typedef void (rpc_handler)(uint16_t sending_nid, char* recv_slot, cq_entry_t *head, void *owner);
 
 #ifdef __cplusplus
 extern "C" {
@@ -104,9 +104,22 @@ int kal_reg_lbuff(int fd, uint8_t **buff_ptr, const char* lb_name, uint32_t num_
 int kal_reg_ctx(int fd, uint8_t **ctx_ptr, uint32_t num_pages);
 
 /* Msutherl: beta-implementations for send/recv. */
+//void rmc_recv(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr,int lbuff_offset, char *data, int size, int snid, unsigned sending_qp,unsigned srq_slot);
+void rmc_recv(rmc_wq_t *wq, char* lbuff_ptr,int lbuff_offset,size_t size,int snid,uint16_t sending_qp,uint16_t slot_idx);
 
-void rmc_recv(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr,int lbuff_offset, char *data, int size, int snid);
-void rmc_send(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr, int lbuff_offset, char *data, int size, int snid);
+/* Msutherl: New version of rmc_send, using paired send/recv slots */
+void rmc_send(rmc_wq_t *wq, char *lbuff_ptr, int lbuff_offset, size_t size, int snid, uint16_t sending_qp, send_slot_t* send_slot,uint16_t slot_idx);
+
+static inline int get_send_slot(send_metadata_t* slot_data,size_t len)
+{ 
+    for(size_t i = 0; i < len; i++) {
+        int old = slot_data[i].valid.exchange(0);
+        if( old ) { // got slot
+            return slot_data[i].sslot_index;
+        }
+    }
+    return -1; // all slots were full
+}
 
 void print_cbuf(char* buf, size_t len)
 {
@@ -215,8 +228,7 @@ static inline void rmc_rwrite_sync(rmc_wq_t *wq, rmc_cq_t *cq, uint8_t *lbuff_ba
 }
 
 //CAUTION: make sure you call rmc_check_cq() before this function
-static inline void rmc_rread_async(rmc_wq_t *wq, uint8_t *lbuff_base, uint64_t lbuff_offset,
-				   int snid, uint32_t ctx_id, uint64_t ctx_offset, uint64_t length)
+static inline void rmc_rread_async(rmc_wq_t *wq, uint8_t *lbuff_base, uint64_t lbuff_offset,int snid, uint32_t ctx_id, uint64_t ctx_offset, uint64_t length)
 {
   DLogPerf("[sonuma] rmc_rread_async called.");
   
@@ -331,19 +343,23 @@ static inline int rmc_drain_cq(rmc_wq_t *wq, rmc_cq_t *cq, async_handler *handle
   return 0;
 }
 
-static inline uint16_t rmc_poll_cq_rpc(rmc_cq_t* cq, char* srq, rpc_handler* theRPC)
+static inline void rmc_poll_cq_rpc(rmc_cq_t* cq, char** recv_slots, rpc_handler* theRPC, uint16_t* sending_nid, uint16_t* sending_qp,uint16_t* slot_idx)
 {
-  uint16_t retme;
   uint8_t cq_tail = cq->tail;
 
   printf("Polling CQ[%d].SR = %d. CQ->SR = %d\n",
           cq_tail, cq->q[cq_tail].SR, cq->SR);
   // wait for entry to arrive in cq
   while(cq->q[cq_tail].SR != cq->SR ) { }
-  printf("Valid entry in CQ (index %d)! Entry SR = %d, Q. SR = %d. SRQ offset = %d\n",cq_tail,cq->q[cq_tail].SR,cq->SR,cq->q[cq_tail].srq_offset);
+  printf("Valid entry in CQ (index %d)! Entry SR = %d, Q. SR = %d. recv. bufs index = %d\n",cq_tail,cq->q[cq_tail].SR,cq->SR,cq->q[cq_tail].slot_idx);
   // call handler and set nid for sending wq in return
-  retme = cq->q[cq_tail].sending_nid;
-  theRPC(retme, srq, &(cq->q[cq_tail]), NULL);
+  *sending_nid = cq->q[cq_tail].sending_nid;
+  *sending_qp = cq->q[cq_tail].tid;
+  *slot_idx = cq->q[cq_tail].slot_idx;
+
+  char* node_recv_slot = recv_slots[*sending_nid];
+
+  theRPC(*sending_nid, (node_recv_slot + (MAX_RPC_BYTES*(*slot_idx))), &(cq->q[cq_tail]), NULL);
 
   cq->tail = cq->tail + 1;
   //check if CQ reached its end
@@ -351,8 +367,28 @@ static inline uint16_t rmc_poll_cq_rpc(rmc_cq_t* cq, char* srq, rpc_handler* the
       cq->tail = 0;
       cq->SR ^= 1;
   }
-  cq_tail = cq->tail;
-  return retme;
+}
+
+static inline void rmc_test_cq_rpc(rmc_cq_t* cq, char* recv_slots, rpc_handler* theRPC,int* sending_nid, uint16_t* sending_qp,uint16_t* slot_idx)
+{
+  uint8_t cq_tail = cq->tail;
+
+  // wait for entry to arrive in cq
+  if(cq->q[cq_tail].SR == cq->SR ) { 
+      printf("Valid entry in CQ (index %d)! Entry SR = %d, Q. SR = %d. recv_buf index = %d\n",cq_tail,cq->q[cq_tail].SR,cq->SR,cq->q[cq_tail].slot_idx);
+      // call handler and set nid for sending wq in return
+      *sending_nid = cq->q[cq_tail].sending_nid;
+      *sending_qp = cq->q[cq_tail].tid;
+      *slot_idx = cq->q[cq_tail].slot_idx;
+      theRPC(*sending_nid, (recv_slots + (MAX_RPC_BYTES*(*slot_idx))), &(cq->q[cq_tail]), NULL);
+
+      cq->tail = cq->tail + 1;
+      //check if CQ reached its end
+      if (cq->tail >= MAX_NUM_WQ) {
+          cq->tail = 0;
+          cq->SR ^= 1;
+      }
+  } else *sending_nid = -1;
 }
 
 #ifdef __cplusplus

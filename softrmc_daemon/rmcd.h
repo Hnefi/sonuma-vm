@@ -69,9 +69,6 @@
 #define PUTREF 3
 #define MR_ALLOC 4
 
-#define MAX_RPC_BYTES 2048
-#define MIN_RPCBUF_ENTRIES (MAX_NUM_WQ * MAX_NODE_CNT) // FIXME: do dynamic resize later
-
 #define BILLION 1000000000
 
 #ifndef DEBUG_RMC

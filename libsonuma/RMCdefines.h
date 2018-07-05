@@ -38,7 +38,9 @@
 
 #define MAX_NUM_WQ 64
 
-#define MAX_RPC_BYTES 2048
+#define RPC_DATA_PAYLOAD 2048
+#define HEADER_DATA_BYTES 3
+#define MAX_RPC_BYTES (RPC_DATA_PAYLOAD + HEADER_DATA_BYTES)
 
 #define KAL_REG_WQ      1
 #define KAL_UNREG_WQ    6
@@ -48,26 +50,34 @@
 #define KAL_PIN         14
 
 #define PAGE_SIZE 4096
+#define MSGS_PER_PAIR 16
+
+#include <atomic> // Msutherl
+#include <cstdio> // Msutherl
 
 typedef struct wq_entry {
   uint8_t op;
   volatile uint8_t SR;
-  //set with a new WQ entry, unset when entry completed.
-  //Required for pipelining async ops.
+    //set with a new WQ entry, unset when entry completed.
+    //Required for pipelining async ops.
   volatile uint8_t valid;
   uint64_t buf_addr;
   uint64_t buf_offset;
-  uint8_t cid;
+  uint16_t cid;
   uint16_t nid;
   uint64_t offset;
   uint64_t length;
+  /* Msutherl: */
+    uint16_t slot_idx;
 } wq_entry_t;
 
 typedef struct cq_entry { 
   volatile uint8_t SR;
   volatile uint8_t tid;
-  uint64_t srq_offset;
-  uint16_t sending_nid;
+  /* Msutherl: */
+      uint16_t sending_nid;
+      uint16_t sending_qp;
+      uint16_t slot_idx;
 } cq_entry_t;
 
 typedef struct rmc_wq {
@@ -89,23 +99,16 @@ typedef struct qp_info {
   int this_nid;
 } qp_info_t;
 
-// debug entry for printing a wq entry
+typedef struct sslot {
+    volatile bool valid;
+    uint64_t msg_size;
+    uint16_t sending_qp;
+    uint16_t wq_entry_idx;
+} send_slot_t;
 
-// Pure C implementation to return str rep. of WQ entry
-// FIXME: assumes buffer has enough space (please buffer-overflow attack this!)
-int stringify_wq_entry(wq_entry_t* entry,char* buf)
-{
-    return sprintf(buf,
-            "{ Operation = %c,"
-            " SR = %u,"
-            " Valid = %u,"
-            " LBuf_Addr = %#lx,"
-            " LBuf_Offset = %#lx,"
-            " Node ID = %d,"
-            " CTlx Offset = %#lx,"
-            " Read Length = %d }\n"
-            , entry->op, entry->SR, entry->valid, entry->buf_addr, entry->buf_offset,
-            entry->nid, entry->offset, entry->length);
-}
+typedef struct send_slot_metadata {
+    std::atomic<int> valid;
+    unsigned sslot_index;
+} send_metadata_t;
 
 #endif /* H_RMC_DEFINES */

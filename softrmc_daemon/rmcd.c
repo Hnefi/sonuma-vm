@@ -42,9 +42,11 @@
 #include <stdio.h>
 
 #include <vector>
+#include <bitset>
 #include <algorithm>
 
 #include "rmcd.h"
+#include "son_msg.h"
 
 using namespace std;
 
@@ -59,8 +61,30 @@ static char *ctx[MAX_NODE_CNT];
 
 static int node_cnt, this_nid;
 
-// rpc recv. buffer
-static char* srq_buf;
+// rpc messaging domain data
+static char** recv_slots;
+static char** sslots;
+static char** avail_slots;
+
+// Implementation to return str rep. of WQ entry
+// FIXME: assumes buffer has enough space (please buffer-overflow attack this!)
+int stringify_wq_entry(wq_entry_t* entry,char* buf)
+{
+    return sprintf(buf,
+            "{ Operation = %c,"
+            " SR = %u,"
+            " Valid = %u,"
+            " LBuf_Addr = %#lx,"
+            " LBuf_Offset = %#lx,"
+            " Node ID = %d,"
+            " Senders QP = %u,"
+            " Slot Index = %u,"
+            " CTlx Offset = %#lx,"
+            " Read Length = %d }\n"
+            , entry->op, entry->SR, entry->valid, entry->buf_addr, entry->buf_offset,
+            entry->nid, entry->cid, entry->slot_idx, entry->offset, entry->length);
+}
+
 
 int count_valid_cq_entries(volatile rmc_cq_t* cq, int8_t local_cq_head)
 {
@@ -77,12 +101,6 @@ int count_valid_cq_entries(volatile rmc_cq_t* cq, int8_t local_cq_head)
     }
     assert( retCount <= MAX_NUM_WQ );
     return retCount;
-}
-
-// Msutherl: returns offset to SRQ for RMC to place data into
-int get_srq_offset() {
-    //TODO
-    return 0;
 }
 
 // Msutherl: returns qp number for RMC on server-side to terminate msg. into
@@ -105,11 +123,32 @@ uint8_t get_server_qp(volatile rmc_cq_t** cqs,uint8_t* local_cq_heads, int num_q
     return shortest_cq;
 }
 
+static uint8_t qp_rr = 0;
+uint8_t get_server_qp_rrobin() { return (qp_rr++) % 4; }
+
 void print_cbuf(char* buf, size_t len)
 {
     for(int i = 0; i < len;i++) {
-        printf("Buffer[%d] = %c\n",i,buf[i]);
+        printf("Buffer[%d] = %02x\n",i,buf[i]);
     }
+}
+
+// Taken from Beej's guide to Network Programming:
+// http://beej.us/guide/bgnet/html/multi/advanced.html
+int sendall(int sock_fd, char* buf, unsigned* bytesToSend)
+{
+    int total = 0;
+    int bytesLeft = *bytesToSend;
+    int n;
+
+    while( total < *bytesToSend ) {
+        n = send(sock_fd, buf+total, bytesLeft, 0);
+        if( n == -1 ) break;
+        total += n;
+        bytesLeft -= n;
+    }
+    *bytesToSend = total; // actual number of bytes sent goes here
+    return n==-1?-1:0;
 }
 
 int alloc_wq(rmc_wq_t **qp_wq, int wq_id)
@@ -578,6 +617,9 @@ int main(int argc, char **argv)
   //local buffer
   char **local_buffers;
 
+  // temporary copy buffers
+  char** tmp_copies;
+
   if(argc != 4) {
     printf("[main] incorrect number of arguments\n"
             "Usage: ./rmcd <Num. soNUMA Nodes> <ID of this node> <Num QPs to expose>\n");
@@ -592,7 +634,7 @@ int main(int argc, char **argv)
   cqs = (volatile rmc_cq_t**) calloc(num_qps,sizeof(rmc_cq_t*));
   local_buffers = (char**) calloc(num_qps,sizeof(char*));
 
-  //allocate a queue pair
+  //allocate a queue pair, arg bufs
   for(int i = 0; i < num_qps; i++) {
       alloc_wq((rmc_wq_t **)&wqs[i],i);
       alloc_cq((rmc_cq_t **)&cqs[i],i);
@@ -602,9 +644,37 @@ int main(int argc, char **argv)
       local_buf_alloc(&local_buffers[i],fmt,1);
   }
 
-  size_t srq_size = (MAX_RPC_BYTES+1) * MIN_RPCBUF_ENTRIES;
-  size_t n_srq_pages = (srq_size / PAGE_SIZE) + 1;
-  local_buf_alloc(&srq_buf,"srq.txt",n_srq_pages);
+  // allocate messaging domain metadata
+  tmp_copies = (char**) calloc(node_cnt,sizeof(char*));
+  recv_slots = (char**) calloc(node_cnt,sizeof(char*));
+  sslots = (char**) calloc(node_cnt,sizeof(char*));
+  avail_slots = (char**) calloc(node_cnt,sizeof(char*));
+
+  size_t recv_buffer_size = (MAX_RPC_BYTES) * MSGS_PER_PAIR ;
+  size_t n_rbuf_pages = (recv_buffer_size / PAGE_SIZE) + 1;
+
+  size_t send_slots_size = MSGS_PER_PAIR * sizeof(send_slot_t);
+  size_t n_sslots_pages = (send_slots_size / PAGE_SIZE) + 1;
+
+  size_t avail_slots_size = MSGS_PER_PAIR * sizeof(send_metadata_t);
+  size_t n_avail_slots_pages = (avail_slots_size / PAGE_SIZE) + 1;
+  for(int i = 0; i < node_cnt; i++ ) {
+      char fmt[20];
+      sprintf(fmt,"rqueue_node_%d.txt",i);
+      local_buf_alloc(&(recv_slots[i]),fmt,n_rbuf_pages);
+      sprintf(fmt,"send_slots_%d.txt",i);
+      local_buf_alloc(&(sslots[i]),fmt,n_sslots_pages);
+      sprintf(fmt,"avail_slots_%d.txt",i);
+      local_buf_alloc(&(avail_slots[i]),fmt,n_avail_slots_pages);
+      // for every node pair, init send slots metadata
+      send_metadata_t* nodetmp = (send_metadata_t*)(avail_slots[i]);
+      for(int tmp = 0; tmp < MSGS_PER_PAIR; tmp++) {
+          nodetmp[tmp].valid = 1;
+          nodetmp[tmp].sslot_index = tmp;
+      }
+      // make a tmp buffer to hold RPC arguments
+      tmp_copies[i] = (char*)calloc(MAX_RPC_BYTES + RMC_Message::getTotalHeaderBytes(),sizeof(char));
+  }
 
  //create the global address space
   if(ctx_alloc_grant_map(&local_mem_region, MAX_REGION_PAGES) == -1) {
@@ -656,21 +726,11 @@ int main(int argc, char **argv)
           uint8_t* local_cq_SR = &(local_CQ_SRs[qp_num]);
           while ( wq->connected == true && // poll only connected WQs;
                   (wq->q[*local_wq_tail].SR == *local_wq_SR) ) {
-
               DLog("[main] : Processing WQ entry [%d] (local_wq_tail) from QP number %d. QP->SR = %d, local_wq_SR = %d\n",*local_wq_tail,qp_num,wq->SR,*local_wq_SR);
 
 #ifdef DEBUG_PERF_RMC
               clock_gettime(CLOCK_MONOTONIC, &start_time);
 #endif
-
-              /* Msutherl - replaced with stringify_(... )
-               * DLog("[main] reading remote memory, offset = %#x\n",
-                      wq->q[*local_wq_tail].offset);
-              DLog("[main] buffer address %#x\n",
-                      wq->q[*local_wq_tail].buf_addr);
-              DLog("[main] nid = %d; offset = %#x, len = %d\n", wq->q[*local_wq_tail].nid, wq->q[*local_wq_tail].offset, wq->q[*local_wq_tail].length);
-              */
-
               curr = &(wq->q[*local_wq_tail]);
 #ifdef DEBUG_RMC // used ifdef here to avoid stringify every single time
               // (even in perf-mode)
@@ -681,7 +741,6 @@ int main(int argc, char **argv)
               } else {
                 DLog("%s",wq_entry_buf);
               }
-              DLog("Global ctx address: %p\n",ctx[curr->nid] + curr->offset);
 #endif
 
               switch(curr->op) {
@@ -701,14 +760,29 @@ int main(int argc, char **argv)
                       {
                           // send rmc->rmc rpc
                           int receiver = curr->nid;
-#if 0
+#ifdef PRINT_BUFS
                           DLog("Printing RPC Buffer before send.\n");
                           print_cbuf( (char*)(local_buffer + curr->buf_offset), curr->length);
 #endif
-                          unsigned nbytes = send(sinfo[receiver].fd, (char *)(local_buffer + curr->buf_offset), curr->length, 0); // block to ensure WQ entry is processed
-                          if( nbytes < 0 ) {
+                          // 1) Take QP metadata and create RMC_Message class
+                          // 2) Serialize/pack
+                          // 3) sendall() to push all of the bytes out
+                          RMC_Message msg((uint16_t)qp_num,(uint16_t)curr->slot_idx,curr->op,(local_buffer + (curr->buf_offset)),curr->length);
+                          uint32_t bytesToSend = msg.getRequiredLenBytes() + msg.getLenParamBytes();
+                          uint32_t copy = bytesToSend;
+                          char* packedBuffer = new char[bytesToSend];
+                          msg.pack(packedBuffer);
+#ifdef PRINT_BUFS
+                          DLog("Printing RPC Buffer after pack.\n");
+                          print_cbuf(packedBuffer, bytesToSend);
+#endif
+                          unsigned retval = sendall(sinfo[receiver].fd,packedBuffer,&bytesToSend);
+                          if( retval < 0 ) {
                               perror("[rmc_rpc] send failed, w. error:");
-                          }  
+                          } else if ( bytesToSend < copy) {
+                              printf("Only sent %d of %d bytes.... Do something about it!!!!\n",bytesToSend,copy);
+                          } else ;
+                          delete packedBuffer;
                           break;
                       }
                   case 'a': ;
@@ -747,16 +821,8 @@ int main(int argc, char **argv)
                       *local_cq_head = 0;
                       *local_cq_SR ^= 1;
                   }
-              } else if (curr->op == 's') {
-                  // rmc send. mark WQ as processed but no CQ yet
-                  // (that's created on receiving something through rmc->rmc socket)
-                  *local_wq_tail += 1;
-                  if (*local_wq_tail >= MAX_NUM_WQ) {
-                      *local_wq_tail = 0;
-                      *local_wq_SR ^= 1;
-                  }
-              } else if (curr->op == 'g') {
-                  // rmc receive. unmark WQ as valid, to reuse
+              } else if (curr->op == 's' || curr->op == 'g') {
+                  // rmc send/recv. mark WQ as processed
                   *local_wq_tail += 1;
                   if (*local_wq_tail >= MAX_NUM_WQ) {
                       *local_wq_tail = 0;
@@ -791,44 +857,71 @@ int main(int argc, char **argv)
       }// end loop over qps
 
       // Msutherl: check all sockets (sinfos) for outstanding rpc
+      uint32_t max_single_msg_size = MAX_RPC_BYTES + RMC_Message::getTotalHeaderBytes();
       for(i = 0; i < node_cnt; i++) {
           if( i != this_nid ) {
-              int srq_o = get_srq_offset();
-              char* rbuf = (char*)(srq_buf + srq_o);
-              int nrecvd = recv(sinfo[i].fd, rbuf, MAX_RPC_BYTES+1, MSG_DONTWAIT);
+              char* rbuf = tmp_copies[i];
+              // recv 4 bytes (header size) 
+              int nrecvd = recv(sinfo[i].fd, rbuf, RMC_Message::getLenParamBytes() , MSG_DONTWAIT);
+              int rec_round_2 = 0;
+              if( nrecvd > 0 && nrecvd < RMC_Message::getLenParamBytes() ) { 
+                  DLog("[rmc_poll] got partial len from header, nbytes = %d\n",nrecvd);
+                  rec_round_2 = recv(sinfo[i].fd, (rbuf+nrecvd), RMC_Message::getLenParamBytes() - nrecvd , 0); // block to get the rest of the header
+                  if( rec_round_2 < 0 ) {
+                      perror("[rmc_poll] Failed on recv(...) waiting for rest of length\n");
+                  }
+              } else if( nrecvd < 0 ) {
+                  continue;
+                  //perror("[rmc_poll] Failed on recv(...) waiting for first byte...\n");
+              }
+
+              // otherwise, we now have a full header
+              assert( (nrecvd + rec_round_2) >= RMC_Message::getLenParamBytes() );
+
+              // read it and figure out how much else to wait for
+              uint32_t msgLengthReceived = ntohl(*((uint32_t*)rbuf));
+              DLog("Next msg will come with length: %d\n",msgLengthReceived);
+              nrecvd = recv(sinfo[i].fd, (rbuf + RMC_Message::getLenParamBytes()), msgLengthReceived, 0); // block to get it all
               if( nrecvd > 0 ) {
-                  printf("[rmc_poll] got something non-zero, nbytes = %d\n",nrecvd);
-                  printf("Passed buf (string interpret): %s\n",rbuf);
-                  // check whether it's an rpc send, or recv to already sent rpc
-                  int offset = nrecvd;
-                  char dmux = *((char*)rbuf + offset-1);
-#if 0
-                  DLog("Printing RPC Buffer after receive.\n");
+                  DLog("[rmc_poll] got rest of message, nbytes = %d\n",nrecvd);
+#ifdef PRINT_BUFS
+                  DLog("Printing RPC Buffer after full message received.\n");
                   print_cbuf( (char*)rbuf, nrecvd );
 #endif
-                  switch( dmux ) {
+                  RMC_Message msgReceived = unpackToRMC_Message(rbuf);
+                  switch( msgReceived.msg_type ) {
+                    // check whether it's an rpc send, or recv to already sent rpc
                       case 's':
                           {
-                              uint8_t qp_to_terminate = get_server_qp(cqs,local_CQ_heads,num_qps);
+                              uint16_t recv_slot = msgReceived.slot;
+                              uint16_t sending_qp = msgReceived.senders_qp;
+                              // copy tmp buf into actual recv slot (this is emulated
+                              // and does not represent modelled zero-copy hardware)
+                              char* recv_slot_ptr = recv_slots[i]  // base
+                                  + (recv_slot * (MAX_RPC_BYTES));
+                              memcpy((void*) recv_slot_ptr,msgReceived.payload.data(),msgLengthReceived - RMC_Message::getMessageHeaderBytes());
+                              uint8_t qp_to_terminate = get_server_qp_rrobin();
                               cq = cqs[qp_to_terminate];
-                              // push into the cq.
+                              while ( !cq->connected ) {
+                                  qp_to_terminate = get_server_qp_rrobin();
+                                  cq = cqs[qp_to_terminate];
+                              }
                               uint8_t* local_cq_head = &(local_CQ_heads[qp_to_terminate]);
                               uint8_t* local_cq_SR = &(local_CQ_SRs[qp_to_terminate]);
-                              cq->q[*local_cq_head].srq_offset = srq_o;
                               cq->q[*local_cq_head].SR = *local_cq_SR;
-                              cq->q[*local_cq_head].sending_nid = qp_to_terminate;// FIXME: this should be the rpc server's qp
+                              cq->q[*local_cq_head].sending_nid = i;
+                              cq->q[*local_cq_head].tid = sending_qp;
+                              cq->q[*local_cq_head].slot_idx = recv_slot;
                               DLog("Received rpc SEND (\'s\') at rmc #%d. Receive-side QP info is:\n"
                                       "\t{ qp_to_terminate : %d },\n"
                                       "\t{ local_cq_head : %d },\n"
-                                      "\t{ QP[%d]->SR : %d },\n"
-                                      "\t{ local_cq_SR : %d },\n"
-                                      "\t{ CQ->SR : %d },\n"
-                                      "\t{ srq_address : %p },\n",
-                                      this_nid, qp_to_terminate,*local_cq_head,
-                                      qp_to_terminate,cq->q[*local_cq_head].SR,
-                                      *local_cq_SR,
-                                      cq->SR,
-                                      rbuf);
+                                      "\t{ sender's QP : %d },\n"
+                                      "\t{ recv_slot : %d },\n",
+                                      this_nid, 
+                                      qp_to_terminate,
+                                      *local_cq_head,
+                                      sending_qp,
+                                      recv_slot );
                               *local_cq_head += 1;
                               if(*local_cq_head >= MAX_NUM_WQ) {
                                   *local_cq_head = 0;
@@ -838,28 +931,22 @@ int main(int argc, char **argv)
                           }
                       case 'g':
                           {
-                              uint8_t sending_qp = 0; // FIXME: always 0 on sender for now
-                              cq = cqs[sending_qp];
-                              uint8_t* local_cq_head = &(local_CQ_heads[sending_qp]);
-                              uint8_t* local_cq_SR = &(local_CQ_SRs[sending_qp]);
-                              cq->q[*local_cq_head].srq_offset = srq_o;
-                              cq->q[*local_cq_head].SR = *local_cq_SR;
-                              cq->q[*local_cq_head].sending_nid = sending_qp;
-                              DLog("Received rpc RETURN (\'g\') at rmc #%d. Send-side QP info is:\n"
-                                      "\t{ sending_qp : %d },\n"
-                                      "\t{ local_cq_head : %d },\n"
-                                      "\t{ QP[%d]->SR : %d },\n"
-                                      "\t{ local_cq_SR : %d },\n"
-                                      "\t{ CQ->SR : %d },\n",
-                                      this_nid,sending_qp,*local_cq_head,
-                                      sending_qp,cq->q[*local_cq_head].SR,
-                                      *local_cq_SR,
-                                      cq->SR);
-                              *local_cq_head += 1;
-                              if(*local_cq_head >= MAX_NUM_WQ) {
-                                  *local_cq_head = 0;
-                                  *local_cq_SR ^= 1;
-                              }
+                              uint16_t sending_qp = msgReceived.senders_qp;
+                              uint8_t slot_to_reuse = msgReceived.slot;
+                              DLog("Received rpc RECV (\'g\') at rmc #%d. Send-side QP info is:\n"
+                                      "\t{ sender's QP : %d },\n"
+                                      "\t{ slot_to_reuse : %d },\n",
+                                      this_nid, 
+                                      sending_qp,
+                                      slot_to_reuse);
+                              // Operations: invalidate send slots and avail-tracker
+                              send_slot_t* slots_from_node = (send_slot_t*)sslots[i];
+                              send_slot_t* reuseMe = (slots_from_node + slot_to_reuse);
+                              reuseMe->valid = 0;
+                              send_metadata_t* meta_from_node = (send_metadata_t*)avail_slots[i];
+                              send_metadata_t* meToo = (meta_from_node + slot_to_reuse);
+                              int old = meToo->valid.exchange(1);
+                              assert( old == 0 );
                               break;
                           }
                       default:
@@ -877,13 +964,20 @@ int main(int argc, char **argv)
   // free memory
   free(wqs);
   free(cqs);
+  free(local_buffers);
   free(local_WQ_tails);
   free(local_WQ_SRs);
   free(local_CQ_heads);
   free(local_CQ_SRs);
   free(compl_idx);
   free(sinfo);
-  free(srq_buf);
+  for(int i = 0; i < node_cnt; i++ ) {
+      free(tmp_copies[i]);
+  }
+  free(tmp_copies);
+  free(recv_slots);
+  free(sslots);
+  free(avail_slots);
   return 0;
 }
 

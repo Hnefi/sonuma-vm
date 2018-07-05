@@ -31,24 +31,29 @@
 
 SHELL = /bin/sh
 CC    = g++
+CXX = g++
 
-CFLAGS	+= -I$(LIBSONUMA_PATH)
+CFLAGS	+= -I$(LIBSONUMA_PATH) -std=c++11
+CXXFLAGS = $(CFLAGS)
 
 TARGET  = rmcd
+SOURCES = rmcd.c 
 
-SOURCES = \
-	./rmcd.c
-
-HEADERS = \
-	$(LIBSONUMA_PATH}/RMCdefines.h
-
+CPPSOURCES = son_msg.cc
 OBJECTS = $(SOURCES:.c=.o)
+CPPOBJECTS = $(CPPSOURCES:.cc=.occ)
 
 all: $(TARGET)
 
-$(TARGET): $(OBJECTS)
-	$(CC) $(CFLAGS) -o $(TARGET) $(OBJECTS)
+%.o : %.c
+	$(CC) $(CFLAGS) -c $^ -o $@ 
+
+%.occ : %.cc
+	$(CXX) $(CXXFLAGS) -c $^ -o $@ 
+
+$(TARGET): $(OBJECTS) $(CPPOBJECTS)
+	$(CC) $(CFLAGS) -o $(TARGET) $(OBJECTS) $(CPPOBJECTS)
 	cp ./rmcd ../bin/
 
 clean:
-	-${RM} ${TARGET} ${OBJECTS} $(SRCS:.c=.o)
+	-${RM} ${TARGET} $(SOURCES:.c=.o) $(CPPSOURCES:.cc=.occ)
