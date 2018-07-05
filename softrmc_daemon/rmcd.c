@@ -766,7 +766,7 @@ int main(int argc, char **argv)
                           // 1) Take QP metadata and create RMC_Message class
                           // 2) Serialize/pack
                           // 3) sendall() to push all of the bytes out
-                          RMC_Message msg((uint8_t)qp_num,(uint8_t)curr->slot_idx,curr->op,(local_buffer + (curr->buf_offset)),curr->length);
+                          RMC_Message msg((uint16_t)qp_num,(uint16_t)curr->slot_idx,curr->op,(local_buffer + (curr->buf_offset)),curr->length);
                           uint32_t bytesToSend = msg.getRequiredLenBytes() + msg.getLenParamBytes();
                           uint32_t copy = bytesToSend;
                           char* packedBuffer = new char[bytesToSend];
@@ -872,8 +872,6 @@ int main(int argc, char **argv)
               } else if( nrecvd < 0 ) {
                   continue;
                   //perror("[rmc_poll] Failed on recv(...) waiting for first byte...\n");
-              } else { 
-                  perror("[rmc_poll] Failed on recv(...) waiting for first byte...\n");
               }
 
               // otherwise, we now have a full header

@@ -169,8 +169,8 @@ int main(int argc, char **argv)
   unsigned long long start, end;
   
   lbuff_slot = 0;
-  int sending_qp = 0, sending_nid = 0;
-  uint8_t srq_slot;
+  uint16_t sending_qp = 0, sending_nid = 0;
+  uint16_t srq_slot;
   while( op_cnt > 0 ) {
       printf("Loop op_count = %d\n",op_cnt);
       rmc_poll_cq_rpc(cq, (char**)&recv_slots,&handler,&sending_nid,&sending_qp,&srq_slot); // handler decrements --op_cnt

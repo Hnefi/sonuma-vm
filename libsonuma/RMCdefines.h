@@ -63,21 +63,21 @@ typedef struct wq_entry {
   volatile uint8_t valid;
   uint64_t buf_addr;
   uint64_t buf_offset;
-  uint8_t cid;
+  uint16_t cid;
   uint16_t nid;
   uint64_t offset;
   uint64_t length;
   /* Msutherl: */
-    uint8_t slot_idx;
+    uint16_t slot_idx;
 } wq_entry_t;
 
 typedef struct cq_entry { 
   volatile uint8_t SR;
   volatile uint8_t tid;
   /* Msutherl: */
-      uint8_t sending_nid;
-      uint8_t sending_qp;
-      uint8_t slot_idx;
+      uint16_t sending_nid;
+      uint16_t sending_qp;
+      uint16_t slot_idx;
 } cq_entry_t;
 
 typedef struct rmc_wq {
@@ -102,8 +102,8 @@ typedef struct qp_info {
 typedef struct sslot {
     volatile bool valid;
     uint64_t msg_size;
-    uint8_t sending_qp;
-    uint8_t wq_entry_idx;
+    uint16_t sending_qp;
+    uint16_t wq_entry_idx;
 } send_slot_t;
 
 typedef struct send_slot_metadata {

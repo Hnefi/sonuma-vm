@@ -44,7 +44,7 @@ using namespace std;
 
 uint32_t RMC_Message::total_header_bytes = 9; // FIXME: do this dynamically?
 
-RMC_Message::RMC_Message(uint8_t aQP, uint8_t aSlot, char aType,char* aPayloadPtr,uint32_t aPayLen) :
+RMC_Message::RMC_Message(uint16_t aQP, uint16_t aSlot, char aType,char* aPayloadPtr,uint32_t aPayLen) :
     message_len(1+2+2+aPayLen), // does not include 4B for len itself
     msg_type(aType),
     senders_qp(aQP),
@@ -104,5 +104,6 @@ RMC_Message unpackToRMC_Message(char* buf)
 
     uint16_t* slot_tmptr = (uint16_t*) aNetworkBuffer;
     slot = ntohs(*aNetworkBuffer);
+    printf(" Demultiplexed: slot %d\n ", slot );
     return RMC_Message( senders_qp,slot,mType,(buf + RMC_Message::total_header_bytes), (message_len - RMC_Message::total_header_bytes) );
 }
