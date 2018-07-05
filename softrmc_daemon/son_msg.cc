@@ -106,11 +106,15 @@ RMC_Message unpackToRMC_Message(char* buf)
     aNetworkBuffer += sizeof(char);
 
     uint16_t* senderQP_tmptr = (uint16_t*) aNetworkBuffer;
+    printf("[senderQP addr %p]: Raw value before ntohs: %d\n",senderQP_tmptr,*senderQP_tmptr);
     senders_qp = ntohs(*aNetworkBuffer);
+    printf("[senderQP addr] Value after ntohs: %d\n",senders_qp);
     aNetworkBuffer += sizeof(uint16_t);
 
     uint16_t* slot_tmptr = (uint16_t*) aNetworkBuffer;
+    printf("[slot paddr %p]: Raw value before ntohs: %d\n",slot_tmptr,*slot_tmptr);
     slot = ntohs(*aNetworkBuffer);
+    printf("[slot paddr] Value after ntohs: %d\n",slot);
     printf(" Demultiplexed: message_len %d\n "
            " : mtype %c\n "
            " : senders_qp %d\n "
