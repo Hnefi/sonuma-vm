@@ -899,7 +899,19 @@ int main(int argc, char **argv)
                               // and does not represent modelled zero-copy hardware)
                               char* recv_slot_ptr = recv_slots[i]  // base
                                   + (recv_slot * (MAX_RPC_BYTES));
-                              memcpy((void*) recv_slot_ptr,msgReceived.payload.data(),msgLengthReceived - RMC_Message::getMessageHeaderBytes());
+                              size_t arg_len = msgLengthReceived - RMC_Message::getMessageHeaderBytes();
+                              memcpy((void*) recv_slot_ptr,msgReceived.payload.data(),arg_len);
+#ifdef DEBUG_RMC
+                              for(int offset = 0; offset < arg_len; offset++) {
+                                  if( msgReceived.payload[offset] != recv_slot_ptr[offset] ) {
+                                      DLog("DUMP of payload:.\n");
+                                      print_cbuf( (char*) msgReceived.payload.data(), arg_len );
+                                      DLog("DUMP of recv_slot_ptr:.\n");
+                                      print_cbuf( (char*) recv_slot_ptr, arg_len );
+                                      break;
+                                  }
+                              }
+#endif
                               uint8_t qp_to_terminate = get_server_qp_rrobin();
                               cq = cqs[qp_to_terminate];
                               while ( !cq->connected ) {

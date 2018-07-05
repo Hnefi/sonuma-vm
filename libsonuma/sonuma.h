@@ -50,7 +50,7 @@
 #include "RMCdefines.h"
 #define RMC_DEV "/dev/sonuma_rmc"
 
-#ifdef DEBUG_LIBSONUMA
+#ifdef DEBUG_RMC
 #define DLog(M, ...) fprintf(stdout, "DEBUG %s:%d: " M "\n", __FILE__, __LINE__, ##__VA_ARGS__)
 #else
 #define DLog(M, ...)
@@ -358,7 +358,6 @@ static inline void rmc_poll_cq_rpc(rmc_cq_t* cq, char** recv_slots, rpc_handler*
   *slot_idx = cq->q[cq_tail].slot_idx;
 
   char* node_recv_slot = recv_slots[*sending_nid];
-
   theRPC(*sending_nid, (node_recv_slot + (MAX_RPC_BYTES*(*slot_idx))), &(cq->q[cq_tail]), NULL);
 
   cq->tail = cq->tail + 1;
