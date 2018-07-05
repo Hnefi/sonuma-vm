@@ -129,7 +129,7 @@ uint8_t get_server_qp_rrobin() { return (qp_rr++) % 4; }
 void print_cbuf(char* buf, size_t len)
 {
     for(int i = 0; i < len;i++) {
-        printf("Buffer[%d] = %c\n",i,buf[i]);
+        printf("Buffer[%d] = %X\n",i,buf[i]);
     }
 }
 

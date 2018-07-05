@@ -42,6 +42,13 @@
 
 using namespace std;
 
+void write_buf(char* buf, size_t len)
+{
+    for(int i = 0; i < len;i++) {
+        printf("Buffer[%d] = %c\n",i,buf[i]);
+    }
+}
+
 uint32_t RMC_Message::total_header_bytes = 9; // FIXME: do this dynamically?
 
 RMC_Message::RMC_Message(uint16_t aQP, uint16_t aSlot, char aType,char* aPayloadPtr,uint32_t aPayLen) :
