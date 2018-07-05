@@ -107,13 +107,13 @@ RMC_Message unpackToRMC_Message(char* buf)
 
     uint16_t* senderQP_tmptr = (uint16_t*) aNetworkBuffer;
     printf("[senderQP addr %p]: Raw value before ntohs: %d\n",senderQP_tmptr,*senderQP_tmptr);
-    senders_qp = ntohs(*aNetworkBuffer);
+    senders_qp = ntohs(*senderQP_tmptr);
     printf("[senderQP addr] Value after ntohs: %d\n",senders_qp);
     aNetworkBuffer += sizeof(uint16_t);
 
     uint16_t* slot_tmptr = (uint16_t*) aNetworkBuffer;
     printf("[slot paddr %p]: Raw value before ntohs: %d\n",slot_tmptr,*slot_tmptr);
-    slot = ntohs(*aNetworkBuffer);
+    slot = ntohs(*slot_tmptr);
     printf("[slot paddr] Value after ntohs: %d\n",slot);
     printf(" Demultiplexed: message_len %d\n "
            " : mtype %c\n "
@@ -123,5 +123,6 @@ RMC_Message unpackToRMC_Message(char* buf)
            mType,
            senders_qp,
            slot);
+    aNetworkBuffer += sizeof(uint16_t);
     return RMC_Message( senders_qp,slot,mType,(buf + RMC_Message::total_header_bytes), (message_len - RMC_Message::total_header_bytes) );
 }
