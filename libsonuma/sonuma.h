@@ -50,7 +50,7 @@
 #include "RMCdefines.h"
 #define RMC_DEV "/dev/sonuma_rmc"
 
-#ifdef DEBUG
+#ifdef DEBUG_LIBSONUMA
 #define DLog(M, ...) fprintf(stdout, "DEBUG %s:%d: " M "\n", __FILE__, __LINE__, ##__VA_ARGS__)
 #else
 #define DLog(M, ...)

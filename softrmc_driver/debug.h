@@ -34,7 +34,7 @@
 
 //#define DEBUG
 
-#ifdef DEBUG
+#ifdef DEBUG_KMOD
 #define TRACE_ENTRY printk(KERN_CRIT "Entering %s\n", __func__)
 #define TRACE_ENTRY_ONCE do{ static int once = 1; if (once){ TRACE_ENTRY; once = 0; } }while(0)
 #define TRACE_EXIT  printk(KERN_CRIT "Exiting %s\n", __func__)
