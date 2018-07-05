@@ -104,6 +104,13 @@ RMC_Message unpackToRMC_Message(char* buf)
 
     uint16_t* slot_tmptr = (uint16_t*) aNetworkBuffer;
     slot = ntohs(*aNetworkBuffer);
-    printf(" Demultiplexed: slot %d\n ", slot );
+    printf(" Demultiplexed: message_len %d\n "
+           " : mtype %c\n "
+           " : senders_qp %d\n "
+           " : slot %d\n ",
+           message_len, 
+           mType,
+           senders_qp,
+           slot);
     return RMC_Message( senders_qp,slot,mType,(buf + RMC_Message::total_header_bytes), (message_len - RMC_Message::total_header_bytes) );
 }

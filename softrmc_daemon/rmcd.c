@@ -77,10 +77,12 @@ int stringify_wq_entry(wq_entry_t* entry,char* buf)
             " LBuf_Addr = %#lx,"
             " LBuf_Offset = %#lx,"
             " Node ID = %d,"
+            " Senders QP = %u,"
+            " Slot Index = %u,"
             " CTlx Offset = %#lx,"
             " Read Length = %d }\n"
             , entry->op, entry->SR, entry->valid, entry->buf_addr, entry->buf_offset,
-            entry->nid, entry->offset, entry->length);
+            entry->nid, entry->cid, entry->slot_idx, entry->offset, entry->length);
 }
 
 
@@ -739,7 +741,6 @@ int main(int argc, char **argv)
               } else {
                 DLog("%s",wq_entry_buf);
               }
-              DLog("Global ctx address: %p\n",ctx[curr->nid] + curr->offset);
 #endif
 
               switch(curr->op) {
