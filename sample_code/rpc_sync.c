@@ -52,6 +52,12 @@ static __inline__ unsigned long long rdtsc(void)
   return ((unsigned long long)lo) | (((unsigned long long)hi)<<32) ;
 }
 
+void handler(uint16_t tid, char* recv_slot, cq_entry_t *head, void *owner) {
+  printf("[pong]: Application got pong from nid [%d] w. buf. string: %s\n",
+          tid,
+          recv_slot);
+}
+
 int main(int argc, char **argv)
 {
   rmc_wq_t *wq;
@@ -202,6 +208,13 @@ int main(int argc, char **argv)
     printf("time to execute this op: %lf ns\n", ((double)end - start)/CPU_FREQ);
 #endif
   }
+  
+  uint16_t sending_qp = 0, sending_nid = 0;
+  uint16_t slot;
+  rmc_poll_cq_rpc(cq, (char**)&recv_slots,&handler,&sending_nid,&sending_qp,&slot); // handler decrements --op_cnt
+
+  // free slot on send-side
+  rmc_recv(wq,(char*)lbuff,lbuff_slot,OBJ_READ_SIZE,sending_nid,sending_qp,slot);
  
   return 0;
 }

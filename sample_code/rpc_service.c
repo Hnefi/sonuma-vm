@@ -55,8 +55,6 @@ static __inline__ unsigned long long rdtsc(void)
 }
 
 void handler(uint16_t tid, char* recv_slot, cq_entry_t *head, void *owner) {
-    //uint64_t offset_calc = head->slot_idx;
-    //offset_calc *= MAX_RPC_BYTES;
   printf("[rpc_handler]: Application got RPC from nid [%d] w. buf. string: %s\n",
           tid,
           recv_slot);
@@ -170,14 +168,46 @@ int main(int argc, char **argv)
   
   lbuff_slot = 0;
   uint16_t sending_qp = 0, sending_nid = 0;
-  uint16_t srq_slot;
+  uint16_t slot;
   while( op_cnt > 0 ) {
       printf("Loop op_count = %d\n",op_cnt);
-      rmc_poll_cq_rpc(cq, (char**)&recv_slots,&handler,&sending_nid,&sending_qp,&srq_slot); // handler decrements --op_cnt
+      rmc_poll_cq_rpc(cq, (char**)&recv_slots,&handler,&sending_nid,&sending_qp,&slot); // handler decrements --op_cnt
       printf("Returned from poll_cq_rpc...\n");
 
       // enqueue receive in wq
-      rmc_recv(wq,(char*)lbuff,lbuff_slot,OBJ_READ_SIZE,sending_nid,sending_qp,srq_slot);
+      rmc_recv(wq,(char*)lbuff,lbuff_slot,OBJ_READ_SIZE,sending_nid,sending_qp,slot);
+
+      // copy into local buffer to send back.
+      memcpy(lbuff, recv_slots[sending_nid] + (MAX_RPC_BYTES)*slot, OBJ_READ_SIZE);
+      // transform "rpc" to "ret"
+      char transform[4] = "ret";
+      unsigned offset = 6, idx = 0;
+      while(idx++ < 3) {
+          *(lbuff+offset+idx) = transform[idx];
+      }
+
+      // free slot on send-side
+      rmc_recv(wq,(char*)lbuff,lbuff_slot,OBJ_READ_SIZE,sending_nid,sending_qp,slot);
+
+      // now send something the other way
+      int available_slot_index = -1;
+      int wait_count = 0;
+      while( available_slot_index < 0 ) {
+          send_metadata_t* ptr = (send_metadata_t*) (slot_metadata[sending_nid]);
+          available_slot_index = get_send_slot(ptr,MSGS_PER_PAIR);
+          if( available_slot_index < 0 ) {
+              printf("All slots full, wait #%d....\n",wait_count);
+              wait_count++;
+              if(wait_count > 100) { printf("ROMES, something's horribly wrong....\n"); exit(1); }
+          }
+      }
+      send_slot_t* target_node_slots = (send_slot_t*)sslots[sending_nid];
+      send_slot_t* my_slot = (target_node_slots + available_slot_index);
+      printf("Got slot index: %d, and send slots pointer: %p\n",available_slot_index,my_slot);
+
+      start = rdtsc();
+      rmc_send(wq, (char*)lbuff, lbuff_slot, OBJ_READ_SIZE,sending_nid,qp_id,my_slot,available_slot_index);
+
   }
  
   return 0;
