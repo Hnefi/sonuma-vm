@@ -158,8 +158,8 @@ int main(int argc, char **argv)
 
     size_t avail_slots_size = MSGS_PER_PAIR * sizeof(send_metadata_t);
     size_t n_avail_slots_pages = (avail_slots_size / PAGE_SIZE) + 1;
+    char fmt[25];
     for(int i = 0; i < node_cnt; i++) {
-        char fmt[25];
         sprintf(fmt,"rqueue_node_%d.txt",i);
         recv_slots[i] = NULL;
         if(kal_reg_lbuff(fd,&(recv_slots[i]),fmt,n_rbuf_pages) < 0) {
@@ -178,6 +178,9 @@ int main(int argc, char **argv)
             printf("Failed to allocate slot metadata for node %d\n",i);
             return -1;
         }
+    }
+    // assumes each thread gets 1 WQ/CQ/Lbuf and the RMC already created them.
+    for(int i = 0; i < THREADS; i++ ) {
         //register local buffer
         lbuff[i] = NULL;
         if(kal_reg_lbuff(fd, &(lbuff[i]), fmt,buf_size/PAGE_SIZE) < 0) {
@@ -186,12 +189,12 @@ int main(int argc, char **argv)
         }       
 
         //register WQs
-        if(kal_reg_wq(fd, &wqs[i],0) < 0) {
+        if(kal_reg_wq(fd, &(wqs[i]),i) < 0) {
             printf("Failed to register WQ\n");
             return -1;
         }
         //register CQ
-        if(kal_reg_cq(fd, &cqs[i],0) < 0) {
+        if(kal_reg_cq(fd, &(cqs[i]),i) < 0) {
             printf("Failed to register CQ\n");
             return -1;
         }
@@ -213,8 +216,8 @@ int main(int argc, char **argv)
     }
     fprintf(stdout,"Init done! Will execute %d WQ operations - SYNC! (target_node = %d, snid = %d)\n",num_iter, target_nid,snid);
 
-    // launch all of the messagers
 
+    // launch all of the messagers
     for(int i = 0; i < THREADS; i++) {
         thrs[i] = std::thread(messager_thread,/*args*/
                               i,target_nid,snid,node_cnt,rpc_size,num_iter_per_thread,
