@@ -78,6 +78,7 @@ void messager_thread(int thread_num, int target_nid, int snid, int node_cnt, int
         for(int o = 0; o < 12; o++) {
             *(lbuff + (lbuff_slot+o)) = tmp[o];
         }
+        printf("[tid %d] Wrote string %s to lbuff.\n",thread_num,(char*)lbuff);
 
         int available_slot_index = -1;
         int wait_count = 0;
@@ -98,7 +99,7 @@ void messager_thread(int thread_num, int target_nid, int snid, int node_cnt, int
         }
         send_slot_t* target_node_slots = (send_slot_t*)sslots[target_nid];
         send_slot_t* my_slot = (target_node_slots + available_slot_index);
-        printf("Got slot index: %d, and send slots pointer: %p\n",available_slot_index,my_slot);
+        printf("[tid %d] Got slot index: %d, and send slots pointer: %p\n",thread_num,available_slot_index,my_slot);
 
         rmc_send(wq, (char*)lbuff, lbuff_slot, OBJ_READ_SIZE,target_nid,thread_num,my_slot,available_slot_index);
 
