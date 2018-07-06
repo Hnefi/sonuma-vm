@@ -771,7 +771,7 @@ int main(int argc, char **argv)
                           uint32_t copy = bytesToSend;
                           char* packedBuffer = new char[bytesToSend];
                           msg.pack(packedBuffer);
-#ifdef PRINT_BUFS
+#if 0
                           DLog("Printing RPC Buffer after pack.\n");
                           print_cbuf(packedBuffer, bytesToSend);
 #endif
