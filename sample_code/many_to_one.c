@@ -179,6 +179,12 @@ int main(int argc, char **argv)
             printf("Failed to allocate slot metadata for node %d\n",i);
             return -1;
         }
+
+        // Hard reset send slots
+        send_metadata_t* ptr = (send_metadata_t*) (slot_metadata[i]);
+        for(int slot_num = 0; slot_num < MSGS_PER_PAIR; slot_num++ ) {
+            slot_num,ptr[slot_num].valid.store(1);
+        }
     }
     // assumes each thread gets 1 WQ/CQ/Lbuf and the RMC already created them.
     for(int i = 0; i < THREADS; i++ ) {
@@ -198,12 +204,6 @@ int main(int argc, char **argv)
         if(kal_reg_cq(fd, &(cqs[i]),i) < 0) {
             printf("Failed to register CQ\n");
             return -1;
-        }
-
-        // Hard reset send slots
-        send_metadata_t* ptr = (send_metadata_t*) (slot_metadata[i]);
-        for(int slot_num = 0; slot_num < MSGS_PER_PAIR; slot_num++ ) {
-            slot_num,ptr[slot_num].valid.store(1);
         }
     }
 
