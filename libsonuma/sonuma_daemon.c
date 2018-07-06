@@ -65,6 +65,7 @@ int kal_reg_wq(int fd, rmc_wq_t **wq_ptr, int wq_id)
     return -1;
   }
 
+  printf("Mapped WQ with id %d to vaddr %p\n",wq_id,*wq_ptr);
   (*wq_ptr)->connected = true;
 
   fclose(f);
@@ -87,6 +88,7 @@ int kal_reg_cq(int fd, rmc_cq_t **cq_ptr, int cq_id)
     printf("[kal_reg_cq] shm attach failed (completion queue)\n");
     return -1;
   }
+  printf("Mapped CQ with id %d to vaddr %p\n",cq_id,*cq_ptr);
 
   (*cq_ptr)->connected = true;
   
@@ -110,12 +112,12 @@ int kal_reg_lbuff(int fd, uint8_t **buff_ptr, const char* lb_name, uint32_t num_
       printf("[kal_reg_lbuff] shm attach failed (local buffer)\n");
       return -1;
     }
-    
-    //memset(*buff_ptr, 0, num_pages*4096); // MSUTHERL: I CAN'T BELIEVE THIS WAS THE PROBLEM THE WHOLE TIME
   } else {
     printf("[kal_ref_lbuff] local buffer has been allocated, return\n");
     return -1;
   }
+
+  printf("Mapped lbuf w. descriptor %s to vaddr %p\n",lb_name,*buff_ptr);
 
   fclose(f);
   return 0;

@@ -158,8 +158,8 @@ int main(int argc, char **argv)
 
     size_t avail_slots_size = MSGS_PER_PAIR * sizeof(send_metadata_t);
     size_t n_avail_slots_pages = (avail_slots_size / PAGE_SIZE) + 1;
-    char fmt[25];
     for(int i = 0; i < node_cnt; i++) {
+        char fmt[25];
         sprintf(fmt,"rqueue_node_%d.txt",i);
         recv_slots[i] = NULL;
         if(kal_reg_lbuff(fd,&(recv_slots[i]),fmt,n_rbuf_pages) < 0) {
@@ -187,6 +187,8 @@ int main(int argc, char **argv)
     }
     // assumes each thread gets 1 WQ/CQ/Lbuf and the RMC already created them.
     for(int i = 0; i < THREADS; i++ ) {
+        char fmt[25];
+        sprintf(fmt,"local_buf_ref_%d.txt",0);
         //register local buffer
         lbuff[i] = NULL;
         if(kal_reg_lbuff(fd, &(lbuff[i]), fmt,buf_size/PAGE_SIZE) < 0) {
