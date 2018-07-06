@@ -123,7 +123,6 @@ RMC_Message unpackToRMC_Message(char* buf)
     uint16_t* slot_tmptr = (uint16_t*) aNetworkBuffer;
     slot = ntohs(*slot_tmptr);
 #ifdef DEBUG_RMC
-    printf("[slot paddr] Value after ntohs: %d\n",slot);
     printf(" Demultiplexed: message_len %d\n "
            " : mtype %c\n "
            " : senders_qp %d\n "
@@ -133,7 +132,6 @@ RMC_Message unpackToRMC_Message(char* buf)
            senders_qp,
            slot);
 #endif
-    aNetworkBuffer += sizeof(uint16_t);
-    return mType == 'g' ? RMC_Message( senders_qp,slot,mType,(buf + RMC_Message::total_header_bytes), (message_len - RMC_Message::total_header_bytes) ) :
+    return mType == 's' ? RMC_Message( senders_qp,slot,mType,(buf + RMC_Message::total_header_bytes), (message_len - RMC_Message::total_header_bytes) ) :
         RMC_Message( senders_qp,slot,mType ) ;
 }
