@@ -200,7 +200,7 @@ int main(int argc, char **argv)
             printf("Failed to register WQ\n");
             return -1;
         }
-        //register CQ
+        //register CQs
         if(kal_reg_cq(fd, &(cqs[i]),i) < 0) {
             printf("Failed to register CQ\n");
             return -1;
