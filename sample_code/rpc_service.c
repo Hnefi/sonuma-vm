@@ -175,7 +175,7 @@ int main(int argc, char **argv)
       printf("Returned from poll_cq_rpc...\n");
 
       // free slot on send-side
-      rmc_recv(wq,(char*)lbuff,lbuff_slot,OBJ_READ_SIZE,sending_nid,sending_qp,slot);
+      rmc_recv(wq,sending_nid,sending_qp,slot);
 
       // copy into local buffer to send back.
       memcpy(lbuff, recv_slots[sending_nid] + (MAX_RPC_BYTES)*slot, OBJ_READ_SIZE);

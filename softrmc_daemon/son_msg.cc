@@ -60,6 +60,15 @@ RMC_Message::RMC_Message(uint16_t aQP, uint16_t aSlot, char aType,char* aPayload
     payload_len(aPayLen)
 { }
 
+RMC_Message::RMC_Message(uint16_t aQP, uint16_t aSlot, char aType) :
+    message_len(1+2+2), // does not include 4B for len itself
+    msg_type(aType),
+    senders_qp(aQP),
+    slot(aSlot),
+    payload(),
+    payload_len(0)
+{ }
+
 uint32_t
 RMC_Message::getRequiredLenBytes() { return message_len; }
 
@@ -84,8 +93,10 @@ RMC_Message::pack(char* buf)
 
     // FIXME: this is not sent "portably"
     // - could encode in string if need arises
-    memcpy(buf,this->payload.data(),this->payload_len);
-    buf += this->payload_len;
+    if( this->payload_len != 0 ) {
+        memcpy(buf,this->payload.data(),this->payload_len);
+        buf += this->payload_len;
+    }
 }
 
 // Does the reverse of pack(...)

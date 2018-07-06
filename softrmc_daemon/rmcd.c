@@ -756,7 +756,6 @@ int main(int argc, char **argv)
                               curr->length);	
                       break;
                   case 's':
-                  case 'g':
                       {
                           // send rmc->rmc rpc
                           int receiver = curr->nid;
@@ -776,6 +775,27 @@ int main(int argc, char **argv)
                           DLog("Printing RPC Buffer after pack.\n");
                           print_cbuf(packedBuffer, bytesToSend);
 #endif
+                          unsigned retval = sendall(sinfo[receiver].fd,packedBuffer,&bytesToSend);
+                          if( retval < 0 ) {
+                              perror("[rmc_rpc] send failed, w. error:");
+                          } else if ( bytesToSend < copy) {
+                              printf("Only sent %d of %d bytes.... Do something about it!!!!\n",bytesToSend,copy);
+                          } else ;
+                          delete packedBuffer;
+                          break;
+                      }
+                  case 'g':
+                      {
+                          // send rmc->rmc rpc
+                          int receiver = curr->nid;
+                          // 1) Take QP metadata and create RMC_Message class
+                          // 2) Serialize/pack
+                          // 3) sendall() to push all of the bytes out
+                          RMC_Message msg((uint16_t)qp_num,(uint16_t)curr->slot_idx,curr->op);
+                          uint32_t bytesToSend = msg.getRequiredLenBytes() + msg.getLenParamBytes();
+                          uint32_t copy = bytesToSend;
+                          char* packedBuffer = new char[bytesToSend];
+                          msg.pack(packedBuffer);
                           unsigned retval = sendall(sinfo[receiver].fd,packedBuffer,&bytesToSend);
                           if( retval < 0 ) {
                               perror("[rmc_rpc] send failed, w. error:");
@@ -901,7 +921,7 @@ int main(int argc, char **argv)
                                   + (recv_slot * (MAX_RPC_BYTES));
                               size_t arg_len = msgLengthReceived - RMC_Message::getMessageHeaderBytes();
                               memcpy((void*) recv_slot_ptr,msgReceived.payload.data(),arg_len);
-#ifdef DEBUG_RMC
+#if 0
                               for(int offset = 0; offset < arg_len; offset++) {
                                   if( msgReceived.payload[offset] != recv_slot_ptr[offset] ) {
                                       DLog("DUMP of payload:.\n");

@@ -161,7 +161,7 @@ int main(int argc, char **argv)
               printf("Valid entry returned from test_cq_rpc, QP Num: %d...\n",qp_id);
 
               // enqueue receive in wq
-              rmc_recv(wq,cq,CTX_0,(char*)lbuff[qp_id],lbuff_slot,(char*)srq,OBJ_READ_SIZE,sending_nid,sending_qp,srq_slot);
+              rmc_recv(wq,sending_nid,sending_qp,srq_slot);
               printf("Loop op_count = %d\n",op_cnt);
           }
       }

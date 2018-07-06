@@ -209,7 +209,7 @@ int main(int argc, char **argv)
     rmc_poll_cq_rpc(cq, (char**)&recv_slots,&handler,&sending_nid,&sending_qp,&slot); // handler decrements --op_cnt
 
     // free slot on send-side
-    rmc_recv(wq,(char*)lbuff,lbuff_slot,OBJ_READ_SIZE,sending_nid,sending_qp,slot);
+    rmc_recv(wq,sending_nid,sending_qp,slot);
   }
   return 0;
 }

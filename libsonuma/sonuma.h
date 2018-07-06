@@ -104,8 +104,7 @@ int kal_reg_lbuff(int fd, uint8_t **buff_ptr, const char* lb_name, uint32_t num_
 int kal_reg_ctx(int fd, uint8_t **ctx_ptr, uint32_t num_pages);
 
 /* Msutherl: beta-implementations for send/recv. */
-//void rmc_recv(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr,int lbuff_offset, char *data, int size, int snid, unsigned sending_qp,unsigned srq_slot);
-void rmc_recv(rmc_wq_t *wq, char* lbuff_ptr,int lbuff_offset,size_t size,int snid,uint16_t sending_qp,uint16_t slot_idx);
+void rmc_recv(rmc_wq_t *wq,int snid,uint16_t sending_qp,uint16_t slot_idx);
 
 /* Msutherl: New version of rmc_send, using paired send/recv slots */
 void rmc_send(rmc_wq_t *wq, char *lbuff_ptr, int lbuff_offset, size_t size, int snid, uint16_t sending_qp, send_slot_t* send_slot,uint16_t slot_idx);

@@ -187,7 +187,7 @@ void rmc_send(rmc_wq_t *wq, char *lbuff_ptr, int lbuff_offset, size_t size, int 
     }
 }
 
-void rmc_recv(rmc_wq_t *wq, char* lbuff_ptr,int lbuff_offset,size_t size,int snid,uint16_t sending_qp,uint16_t slot_idx)
+void rmc_recv(rmc_wq_t *wq,int snid,uint16_t sending_qp,uint16_t slot_idx)
 {
     // create WQ entry, response for arguments given to CQ
     uint8_t wq_head = wq->head;
@@ -195,11 +195,8 @@ void rmc_recv(rmc_wq_t *wq, char* lbuff_ptr,int lbuff_offset,size_t size,int sni
     DLog("[rmc_recv] rmc_recv called.");
 
     while (wq->q[wq_head].valid) {} //wait for WQ head to be ready
-#ifdef PRINT_BUFS
-    print_cbuf( (char*)lbuff_ptr , size );
-#endif
-    if(size < 64) wq->q[wq_head].length = 64; //at least 64B
-    else wq->q[wq_head].length = size;
+
+    wq->q[wq_head].length = 64; // min. soNUMA transfer size
     wq->q[wq_head].op = 'g';
     wq->q[wq_head].nid = snid;
 
@@ -209,7 +206,6 @@ void rmc_recv(rmc_wq_t *wq, char* lbuff_ptr,int lbuff_offset,size_t size,int sni
         // signal RMC to reuse this slot
 
     wq->head =  wq->head + 1;
-
     //check if WQ reached its end
     if (wq->head >= MAX_NUM_WQ) {
         wq->head = 0;

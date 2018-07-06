@@ -41,8 +41,7 @@
 #include "sonuma.h"
 
 #define ITERS 4
-#define SLOT_SIZE 64
-#define OBJ_READ_SIZE 64
+#define OBJ_READ_SIZE 20
 #define CTX_0 0
 #define CPU_FREQ 2.4
 
@@ -72,7 +71,7 @@ void messager_thread(int thread_num, int target_nid, int snid, int node_cnt, int
     const char tmp[11] = "marks rpc\0";
 
     for(size_t i = 0; i < num_iter; i++) {
-        lbuff_slot = (i * (OBJ_READ_SIZE)) % (PAGE_SIZE - (OBJ_READ_SIZE)); // 64B+1 increments, wrap-around after that much
+        lbuff_slot = (i * (OBJ_READ_SIZE)) % (PAGE_SIZE - (OBJ_READ_SIZE));
 
         // write a test string into lbuff
         *lbuff = (thread_num & 0xff);
@@ -109,7 +108,7 @@ void messager_thread(int thread_num, int target_nid, int snid, int node_cnt, int
         rmc_poll_cq_rpc(cq, (char**)&recv_slots,&handler,&sending_nid,&sending_qp,&slot); // handler decrements --op_cnt
 
         // free slot on send-side
-        rmc_recv(wq,(char*)lbuff,lbuff_slot,OBJ_READ_SIZE,sending_nid,sending_qp,slot);
+        rmc_recv(wq,sending_nid,sending_qp,slot);
     } // end num iters
 }
 
