@@ -204,7 +204,6 @@ int main(int argc, char **argv)
 
       start = rdtsc();
       rmc_send(wq, (char*)lbuff, lbuff_slot, OBJ_READ_SIZE,sending_nid,qp_id,my_slot,available_slot_index);
-
   }
  
   return 0;

@@ -906,7 +906,7 @@ int main(int argc, char **argv)
                   DLog("[rmc_poll] got rest of message, nbytes = %d\n",nrecvd);
 #ifdef PRINT_BUFS
                   DLog("Printing RPC Buffer after full message received.\n");
-                  print_cbuf( (char*)rbuf, nrecvd );
+                  print_cbuf( (char*)rbuf, nrecvd+RMC_Message::getLenParamBytes() );
 #endif
                   RMC_Message msgReceived = unpackToRMC_Message(rbuf);
                   switch( msgReceived.msg_type ) {
