@@ -40,12 +40,12 @@
 
 #include "sonuma.h"
 
-#define ITERS 4
+#define ITERS 2
 #define OBJ_READ_SIZE 20
 #define CTX_0 0
 #define CPU_FREQ 2.4
 
-#define THREADS 4
+#define THREADS 2
 
 static __inline__ unsigned long long rdtsc(void)
 {
