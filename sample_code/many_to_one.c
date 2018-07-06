@@ -75,7 +75,8 @@ void messager_thread(int thread_num, int target_nid, int snid, int node_cnt, int
         lbuff_slot = (i * (OBJ_READ_SIZE)) % (PAGE_SIZE - (OBJ_READ_SIZE)); // 64B+1 increments, wrap-around after that much
 
         // write a test string into lbuff
-        for(int o = 0; o < 12; o++) {
+        *lbuff = (thread_num & 0xff);
+        for(int o = 1; o < 12; o++) {
             *(lbuff + (lbuff_slot+o)) = tmp[o];
         }
         printf("[tid %d] Wrote string %s to lbuff.\n",thread_num,(char*)lbuff);
