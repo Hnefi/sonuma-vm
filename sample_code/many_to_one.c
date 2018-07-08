@@ -188,7 +188,7 @@ int main(int argc, char **argv)
     // assumes each thread gets 1 WQ/CQ/Lbuf and the RMC already created them.
     for(int i = 0; i < THREADS; i++ ) {
         char fmt[25];
-        sprintf(fmt,"local_buf_ref_%d.txt",0);
+        sprintf(fmt,"local_buf_ref_%d.txt",i);
         //register local buffer
         lbuff[i] = NULL;
         if(kal_reg_lbuff(fd, &(lbuff[i]), fmt,buf_size/PAGE_SIZE) < 0) {
