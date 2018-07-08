@@ -33,4 +33,4 @@
 
 TOP_SONUMA_DIR = $(CURDIR)
 LIBSONUMA_PATH = $(TOP_SONUMA_DIR)/libsonuma
-CFLAGS = -g -DDEBUG_RMC -DPRINT_BUFS -Wno-format
+CFLAGS = -g -Wno-format
