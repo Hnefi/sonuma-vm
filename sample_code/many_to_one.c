@@ -40,7 +40,7 @@
 
 #include "sonuma.h"
 
-#define ITERS 1024
+#define ITERS 4
 #define OBJ_READ_SIZE 20
 #define CTX_0 0
 #define CPU_FREQ 2.4
