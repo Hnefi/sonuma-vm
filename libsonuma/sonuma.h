@@ -112,10 +112,22 @@ void rmc_send(rmc_wq_t *wq, char *lbuff_ptr, int lbuff_offset, size_t size, int 
 static inline int get_send_slot(send_metadata_t* slot_data,size_t len)
 { 
     for(size_t i = 0; i < len; i++) {
+#ifdef DEBUG_RMC
+        printf("TEST: i = %d, value = %d\n",
+                i, slot_data[i].valid.load());
+#endif
         int old = slot_data[i].valid.exchange(0);
         if( old ) { // got slot
+#ifdef DEBUG_RMC
+            printf("ACQUITED: i = %d, value = %d\n",
+                i, slot_data[i].valid.load());
+#endif
             return slot_data[i].sslot_index;
         }
+#ifdef DEBUG_RMC
+            printf("FAILED: i = %d, value = %d\n",
+                i, slot_data[i].valid.load());
+#endif
     }
     return -1; // all slots were full
 }

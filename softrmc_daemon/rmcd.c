@@ -903,8 +903,8 @@ int main(int argc, char **argv)
               DLog("Next msg will come with length: %d\n",msgLengthReceived);
               nrecvd = recv(sinfo[i].fd, (rbuf + RMC_Message::getLenParamBytes()), msgLengthReceived, 0); // block to get it all
               if( nrecvd > 0 ) {
-                  DLog("[rmc_poll] got rest of message, nbytes = %d\n",nrecvd);
 #ifdef PRINT_BUFS
+                  DLog("[rmc_poll] got rest of message, nbytes = %d\n",nrecvd);
                   DLog("Printing RPC Buffer after full message received.\n");
                   print_cbuf( (char*)rbuf, nrecvd+RMC_Message::getLenParamBytes() );
 #endif

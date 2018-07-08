@@ -182,7 +182,7 @@ int main(int argc, char **argv)
         // Hard reset send slots
         send_metadata_t* ptr = (send_metadata_t*) (slot_metadata[i]);
         for(int slot_num = 0; slot_num < MSGS_PER_PAIR; slot_num++ ) {
-            slot_num,ptr[slot_num].valid.store(1);
+            ptr[slot_num].valid = 1;
         }
     }
     // assumes each thread gets 1 WQ/CQ/Lbuf and the RMC already created them.
