@@ -5,6 +5,9 @@
 *.so
 *.ko
 bin/
+CMakeFiles/
+cmake_install.cmake
+Makefile
 sample_code/bench_async
 sample_code/bench_server
 sample_code/bench_sync
