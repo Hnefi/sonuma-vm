@@ -12,6 +12,7 @@ sample_code/multi_qp_read
 sample_code/rpc_sync
 sample_code/rpc_service
 sample_code/rpc_service_multiqp
+sample_code/many_to_one
 softrmc_driver/*.cmd
 softrmc_driver/*.o
 softrmc_driver/.tmp_versions/

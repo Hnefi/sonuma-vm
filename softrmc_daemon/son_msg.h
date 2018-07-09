@@ -57,6 +57,7 @@ class RMC_Message {
         static uint32_t total_header_bytes;
 
         RMC_Message(uint16_t aQP, uint16_t aSlot, char aType, char* aPayloadPtr,uint32_t payloadLen);
+        RMC_Message(uint16_t aQP, uint16_t aSlot, char aType);
         uint32_t getRequiredLenBytes();
         void pack(char* buf);
 

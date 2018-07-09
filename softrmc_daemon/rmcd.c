@@ -756,7 +756,6 @@ int main(int argc, char **argv)
                               curr->length);	
                       break;
                   case 's':
-                  case 'g':
                       {
                           // send rmc->rmc rpc
                           int receiver = curr->nid;
@@ -772,10 +771,31 @@ int main(int argc, char **argv)
                           uint32_t copy = bytesToSend;
                           char* packedBuffer = new char[bytesToSend];
                           msg.pack(packedBuffer);
-#ifdef PRINT_BUFS
+#if 0
                           DLog("Printing RPC Buffer after pack.\n");
                           print_cbuf(packedBuffer, bytesToSend);
 #endif
+                          unsigned retval = sendall(sinfo[receiver].fd,packedBuffer,&bytesToSend);
+                          if( retval < 0 ) {
+                              perror("[rmc_rpc] send failed, w. error:");
+                          } else if ( bytesToSend < copy) {
+                              printf("Only sent %d of %d bytes.... Do something about it!!!!\n",bytesToSend,copy);
+                          } else ;
+                          delete packedBuffer;
+                          break;
+                      }
+                  case 'g':
+                      {
+                          // send rmc->rmc rpc
+                          int receiver = curr->nid;
+                          // 1) Take QP metadata and create RMC_Message class
+                          // 2) Serialize/pack
+                          // 3) sendall() to push all of the bytes out
+                          RMC_Message msg((uint16_t)qp_num,(uint16_t)curr->slot_idx,curr->op);
+                          uint32_t bytesToSend = msg.getRequiredLenBytes() + msg.getLenParamBytes();
+                          uint32_t copy = bytesToSend;
+                          char* packedBuffer = new char[bytesToSend];
+                          msg.pack(packedBuffer);
                           unsigned retval = sendall(sinfo[receiver].fd,packedBuffer,&bytesToSend);
                           if( retval < 0 ) {
                               perror("[rmc_rpc] send failed, w. error:");
@@ -883,10 +903,10 @@ int main(int argc, char **argv)
               DLog("Next msg will come with length: %d\n",msgLengthReceived);
               nrecvd = recv(sinfo[i].fd, (rbuf + RMC_Message::getLenParamBytes()), msgLengthReceived, 0); // block to get it all
               if( nrecvd > 0 ) {
-                  DLog("[rmc_poll] got rest of message, nbytes = %d\n",nrecvd);
 #ifdef PRINT_BUFS
+                  DLog("[rmc_poll] got rest of message, nbytes = %d\n",nrecvd);
                   DLog("Printing RPC Buffer after full message received.\n");
-                  print_cbuf( (char*)rbuf, nrecvd );
+                  print_cbuf( (char*)rbuf, nrecvd+RMC_Message::getLenParamBytes() );
 #endif
                   RMC_Message msgReceived = unpackToRMC_Message(rbuf);
                   switch( msgReceived.msg_type ) {
@@ -899,7 +919,8 @@ int main(int argc, char **argv)
                               // and does not represent modelled zero-copy hardware)
                               char* recv_slot_ptr = recv_slots[i]  // base
                                   + (recv_slot * (MAX_RPC_BYTES));
-                              memcpy((void*) recv_slot_ptr,msgReceived.payload.data(),msgLengthReceived - RMC_Message::getMessageHeaderBytes());
+                              size_t arg_len = msgLengthReceived - RMC_Message::getMessageHeaderBytes();
+                              memcpy((void*) recv_slot_ptr,msgReceived.payload.data(),arg_len);
                               uint8_t qp_to_terminate = get_server_qp_rrobin();
                               cq = cqs[qp_to_terminate];
                               while ( !cq->connected ) {

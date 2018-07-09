@@ -50,7 +50,7 @@
 #include "RMCdefines.h"
 #define RMC_DEV "/dev/sonuma_rmc"
 
-#ifdef DEBUG_LIBSONUMA
+#ifdef DEBUG_RMC
 #define DLog(M, ...) fprintf(stdout, "DEBUG %s:%d: " M "\n", __FILE__, __LINE__, ##__VA_ARGS__)
 #else
 #define DLog(M, ...)
@@ -104,8 +104,7 @@ int kal_reg_lbuff(int fd, uint8_t **buff_ptr, const char* lb_name, uint32_t num_
 int kal_reg_ctx(int fd, uint8_t **ctx_ptr, uint32_t num_pages);
 
 /* Msutherl: beta-implementations for send/recv. */
-//void rmc_recv(rmc_wq_t *wq, rmc_cq_t *cq, int ctx_id, char *lbuff_ptr,int lbuff_offset, char *data, int size, int snid, unsigned sending_qp,unsigned srq_slot);
-void rmc_recv(rmc_wq_t *wq, char* lbuff_ptr,int lbuff_offset,size_t size,int snid,uint16_t sending_qp,uint16_t slot_idx);
+void rmc_recv(rmc_wq_t *wq,int snid,uint16_t sending_qp,uint16_t slot_idx);
 
 /* Msutherl: New version of rmc_send, using paired send/recv slots */
 void rmc_send(rmc_wq_t *wq, char *lbuff_ptr, int lbuff_offset, size_t size, int snid, uint16_t sending_qp, send_slot_t* send_slot,uint16_t slot_idx);
@@ -113,10 +112,22 @@ void rmc_send(rmc_wq_t *wq, char *lbuff_ptr, int lbuff_offset, size_t size, int 
 static inline int get_send_slot(send_metadata_t* slot_data,size_t len)
 { 
     for(size_t i = 0; i < len; i++) {
+#ifdef DEBUG_RMC
+        printf("TEST: i = %d, value = %d\n",
+                i, slot_data[i].valid.load());
+#endif
         int old = slot_data[i].valid.exchange(0);
         if( old ) { // got slot
+#ifdef DEBUG_RMC
+            printf("ACQUITED: i = %d, value = %d\n",
+                i, slot_data[i].valid.load());
+#endif
             return slot_data[i].sslot_index;
         }
+#ifdef DEBUG_RMC
+            printf("FAILED: i = %d, value = %d\n",
+                i, slot_data[i].valid.load());
+#endif
     }
     return -1; // all slots were full
 }
@@ -358,7 +369,6 @@ static inline void rmc_poll_cq_rpc(rmc_cq_t* cq, char** recv_slots, rpc_handler*
   *slot_idx = cq->q[cq_tail].slot_idx;
 
   char* node_recv_slot = recv_slots[*sending_nid];
-
   theRPC(*sending_nid, (node_recv_slot + (MAX_RPC_BYTES*(*slot_idx))), &(cq->q[cq_tail]), NULL);
 
   cq->tail = cq->tail + 1;

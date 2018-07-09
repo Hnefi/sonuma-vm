@@ -31,12 +31,15 @@
 
 SHELL = /bin/sh
 CC    = g++
+CXX = g++
 
 CFLAGS	+= -I$(LIBSONUMA_PATH) -std=c++11
 LDFLAGS	= -L$(LIBSONUMA_PATH) -Wl,-rpath,$(LIBSONUMA_PATH) -lsonuma -lrt
 
-TARGETS  = bench_sync bench_async bench_server multi_qp_read rpc_sync rpc_service
-SOURCES = bench_sync.c bench_server.c bench_async.c multi_qp_read.c rpc_sync.c rpc_service.c rpc_service_multiqp.c
+CXXFLAGS = $(CFLAGS)
+
+TARGETS  = bench_sync bench_async bench_server multi_qp_read rpc_sync rpc_service many_to_one
+SOURCES = bench_sync.c bench_server.c bench_async.c multi_qp_read.c rpc_sync.c rpc_service.c rpc_service_multiqp.c many_to_one.cc
 OBJECTS = $(SOURCES:.c=.o)
 
 TARGETSYNC = bench_sync
@@ -54,6 +57,10 @@ SERV_OBJS = $(SERV_SOURCES:.c=.o)
 MULTI_TARG = rpc_service_multiqp
 MULTI_SOURCES = rpc_service_multiqp.c
 MULTI_OBJS = $(MULTI_SOURCES:.c=.o)
+
+THREAD_TARG = many_to_one
+THREAD_SOURCES = many_to_one.cc
+THREAD_OBJS = $(THREAD_SOURCES:.cc=.o)
 
 TARGET1  = bench_server
 
@@ -107,6 +114,10 @@ $(SERV_TARG): $(SERV_OBJS)
 
 $(MULTI_TARG): $(MULTI_OBJS)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) 
+	cp ./$@ ../bin/
+
+$(THREAD_TARG): $(THREAD_OBJS)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) -lpthread
 	cp ./$@ ../bin/
 
 clean:

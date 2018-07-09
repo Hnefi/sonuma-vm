@@ -65,6 +65,7 @@ int kal_reg_wq(int fd, rmc_wq_t **wq_ptr, int wq_id)
     return -1;
   }
 
+  printf("Mapped WQ with id %d to vaddr %p\n",wq_id,*wq_ptr);
   (*wq_ptr)->connected = true;
 
   fclose(f);
@@ -87,6 +88,7 @@ int kal_reg_cq(int fd, rmc_cq_t **cq_ptr, int cq_id)
     printf("[kal_reg_cq] shm attach failed (completion queue)\n");
     return -1;
   }
+  printf("Mapped CQ with id %d to vaddr %p\n",cq_id,*cq_ptr);
 
   (*cq_ptr)->connected = true;
   
@@ -110,12 +112,12 @@ int kal_reg_lbuff(int fd, uint8_t **buff_ptr, const char* lb_name, uint32_t num_
       printf("[kal_reg_lbuff] shm attach failed (local buffer)\n");
       return -1;
     }
-    
-    //memset(*buff_ptr, 0, num_pages*4096); // MSUTHERL: I CAN'T BELIEVE THIS WAS THE PROBLEM THE WHOLE TIME
   } else {
     printf("[kal_ref_lbuff] local buffer has been allocated, return\n");
     return -1;
   }
+
+  printf("Mapped lbuf w. descriptor %s to vaddr %p\n",lb_name,*buff_ptr);
 
   fclose(f);
   return 0;
@@ -167,11 +169,6 @@ void rmc_send(rmc_wq_t *wq, char *lbuff_ptr, int lbuff_offset, size_t size, int 
     send_slot->wq_entry_idx = wq_head;
     wq->q[wq_head].buf_addr = (uint64_t)lbuff_ptr;
     wq->q[wq_head].buf_offset = lbuff_offset;
-    /*
-    *(lbuff_ptr + (lbuff_offset+size)) = 's';
-    *(lbuff_ptr + (lbuff_offset+size+1)) = sending_qp;
-    *(lbuff_ptr + (lbuff_offset+size+2)) = slot_idx;
-    */
 #ifdef PRINT_BUFS
     print_cbuf( (char*)lbuff_ptr , size );
 #endif
@@ -192,7 +189,7 @@ void rmc_send(rmc_wq_t *wq, char *lbuff_ptr, int lbuff_offset, size_t size, int 
     }
 }
 
-void rmc_recv(rmc_wq_t *wq, char* lbuff_ptr,int lbuff_offset,size_t size,int snid,uint16_t sending_qp,uint16_t slot_idx)
+void rmc_recv(rmc_wq_t *wq,int snid,uint16_t sending_qp,uint16_t slot_idx)
 {
     // create WQ entry, response for arguments given to CQ
     uint8_t wq_head = wq->head;
@@ -200,16 +197,8 @@ void rmc_recv(rmc_wq_t *wq, char* lbuff_ptr,int lbuff_offset,size_t size,int sni
     DLog("[rmc_recv] rmc_recv called.");
 
     while (wq->q[wq_head].valid) {} //wait for WQ head to be ready
-    /*
-    *(lbuff_ptr + (lbuff_offset+size)) = 'g';
-    *(lbuff_ptr + (lbuff_offset+size+1)) = sending_qp;
-    *(lbuff_ptr + (lbuff_offset+size+2)) = slot_idx;
-    */
-#ifdef PRINT_BUFS
-    print_cbuf( (char*)lbuff_ptr , size );
-#endif
-    if(size < 64) wq->q[wq_head].length = 64; //at least 64B
-    else wq->q[wq_head].length = size;
+
+    wq->q[wq_head].length = 64; // min. soNUMA transfer size
     wq->q[wq_head].op = 'g';
     wq->q[wq_head].nid = snid;
 
@@ -219,7 +208,6 @@ void rmc_recv(rmc_wq_t *wq, char* lbuff_ptr,int lbuff_offset,size_t size,int sni
         // signal RMC to reuse this slot
 
     wq->head =  wq->head + 1;
-
     //check if WQ reached its end
     if (wq->head >= MAX_NUM_WQ) {
         wq->head = 0;

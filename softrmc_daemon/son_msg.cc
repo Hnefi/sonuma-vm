@@ -60,6 +60,15 @@ RMC_Message::RMC_Message(uint16_t aQP, uint16_t aSlot, char aType,char* aPayload
     payload_len(aPayLen)
 { }
 
+RMC_Message::RMC_Message(uint16_t aQP, uint16_t aSlot, char aType) :
+    message_len(1+2+2), // does not include 4B for len itself
+    msg_type(aType),
+    senders_qp(aQP),
+    slot(aSlot),
+    payload(),
+    payload_len(0)
+{ }
+
 uint32_t
 RMC_Message::getRequiredLenBytes() { return message_len; }
 
@@ -84,8 +93,10 @@ RMC_Message::pack(char* buf)
 
     // FIXME: this is not sent "portably"
     // - could encode in string if need arises
-    memcpy(buf,this->payload.data(),this->payload_len);
-    buf += this->payload_len;
+    if( this->payload_len != 0 ) {
+        memcpy(buf,this->payload.data(),this->payload_len);
+        buf += this->payload_len;
+    }
 }
 
 // Does the reverse of pack(...)
@@ -102,26 +113,16 @@ RMC_Message unpackToRMC_Message(char* buf)
     aNetworkBuffer += sizeof(uint32_t);
 
     char* mtype_tmptr = aNetworkBuffer;
-    mType = *aNetworkBuffer;
+    mType = *mtype_tmptr;
     aNetworkBuffer += sizeof(char);
 
     uint16_t* senderQP_tmptr = (uint16_t*) aNetworkBuffer;
-#ifdef DEBUG_RMC
-    printf("[senderQP addr %p]: Raw value before ntohs: %d\n",senderQP_tmptr,*senderQP_tmptr);
-#endif
     senders_qp = ntohs(*senderQP_tmptr);
-#ifdef DEBUG_RMC
-    printf("[senderQP addr] Value after ntohs: %d\n",senders_qp);
-#endif
     aNetworkBuffer += sizeof(uint16_t);
 
     uint16_t* slot_tmptr = (uint16_t*) aNetworkBuffer;
-#ifdef DEBUG_RMC
-    printf("[slot paddr %p]: Raw value before ntohs: %d\n",slot_tmptr,*slot_tmptr);
-#endif
     slot = ntohs(*slot_tmptr);
 #ifdef DEBUG_RMC
-    printf("[slot paddr] Value after ntohs: %d\n",slot);
     printf(" Demultiplexed: message_len %d\n "
            " : mtype %c\n "
            " : senders_qp %d\n "
@@ -131,6 +132,6 @@ RMC_Message unpackToRMC_Message(char* buf)
            senders_qp,
            slot);
 #endif
-    aNetworkBuffer += sizeof(uint16_t);
-    return RMC_Message( senders_qp,slot,mType,(buf + RMC_Message::total_header_bytes), (message_len - RMC_Message::total_header_bytes) );
+    return mType == 's' ? RMC_Message( senders_qp,slot,mType,(buf + RMC_Message::total_header_bytes), (message_len - RMC_Message::total_header_bytes) ) :
+        RMC_Message( senders_qp,slot,mType ) ;
 }
