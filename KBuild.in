@@ -1,0 +1,9 @@
+MODULENAME      := rmc
+ifeq ($(KERNELRELEASE),)
+all:
+    $(MAKE) MORE_FLAGS='-finline-functions gnu_inline' CFLAGS="-finline-functions" $(ccflags-y) -C ${kernel_dir} M=${module_output_dir} modules
+else
+    obj-m := ${module_name}.o
+	rmc-objs := ${rmc_kObjs}
+    ccflags-y = -I${kernel_dir}/arch/x86/include/asm -I${kernel_dir}/include -I${kernel_dir}/arch/x86/include/asm -I${kernel_dir}/include/uapi/linux
+endif

@@ -40,7 +40,7 @@ PWD := $(shell pwd)
 ifeq ($(KERNELRELEASE),)
 all:
 	$(MAKE) MORE_FLAGS='-finline-functions gnu_inline' CFLAGS="-finline-functions" $(ccflags-y) -C $(KDIR_sun) M=$(PWD) modules
-	cp ./rmc.ko ../bin/
+	cp ./rmc.ko ../../build/ #FIXME: hardcoded this to work with cmake
 else
 	rmc-objs := main.o mr_alloc.o
 	obj-m := rmc.o  
