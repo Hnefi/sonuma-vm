@@ -62,12 +62,10 @@
 #define DLogPerf(M, ...)
 #endif
 
+void print_cbuf(char* buf, size_t len);
+
 typedef void (async_handler)(uint8_t tid, wq_entry_t *head, void *owner);
 typedef void (rpc_handler)(uint16_t sending_nid, char* recv_slot, cq_entry_t *head, void *owner);
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /**
  * This func opens connection with kernel driver (KAL).
@@ -108,37 +106,20 @@ void rmc_recv(rmc_wq_t *wq,int snid,uint16_t sending_qp,uint16_t slot_idx);
 
 /* Msutherl: New version of rmc_send, using paired send/recv slots */
 void rmc_send(rmc_wq_t *wq, char *lbuff_ptr, int lbuff_offset, size_t size, int snid, uint16_t sending_qp, send_slot_t* send_slot,uint16_t slot_idx);
-
-static inline int get_send_slot(send_metadata_t* slot_data,size_t len)
-{ 
-    for(size_t i = 0; i < len; i++) {
+/*
 #ifdef DEBUG_RMC
         printf("TEST: i = %d, value = %d\n",
                 i, slot_data[i].valid.load());
 #endif
-        int old = slot_data[i].valid.exchange(0);
-        if( old ) { // got slot
 #ifdef DEBUG_RMC
             printf("ACQUITED: i = %d, value = %d\n",
                 i, slot_data[i].valid.load());
 #endif
-            return slot_data[i].sslot_index;
-        }
 #ifdef DEBUG_RMC
             printf("FAILED: i = %d, value = %d\n",
                 i, slot_data[i].valid.load());
 #endif
-    }
-    return -1; // all slots were full
-}
-
-void print_cbuf(char* buf, size_t len)
-{
-    for(unsigned i = 0; i < len;i++) {
-        printf("Buffer[%d] = %c\n",i,buf[i]);
-    }
-}
-
+            */
 //inline methods
 static inline void rmc_rread_sync(rmc_wq_t *wq, rmc_cq_t *cq, uint8_t *lbuff_base,
 				  uint64_t lbuff_offset, int snid, uint32_t ctx_id,
@@ -400,6 +381,25 @@ static inline void rmc_test_cq_rpc(rmc_cq_t* cq, char* recv_slots, rpc_handler* 
       }
   } else *sending_nid = -1;
 }
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#if defined(__STDC__) || defined(__cplusplus)
+
+// can access directly the <atomic> members
+extern int get_send_slot(send_metadata_t* slot_data,size_t len);
+extern int get_send_slot_trampoline(send_metadata_t* slot_data,size_t len);
+
+#else 
+
+extern int get_send_slot( );
+//extern inline int get_send_slot_trampoline();
+extern int get_send_slot_trampoline( );
+
+#endif
+
 
 #ifdef __cplusplus
 }

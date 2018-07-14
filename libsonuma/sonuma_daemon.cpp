@@ -142,7 +142,7 @@ int kal_reg_ctx(int fd, uint8_t **ctx_ptr, uint32_t num_pages)
       return -1;
     }
     
-    memset(*ctx_ptr, 0, 4096);
+    memset(*ctx_ptr, 0, num_pages);
   } else {
     DLog("[kal_reg_ctx] error: context memory allready allocated\n");
     return -1;
@@ -212,5 +212,23 @@ void rmc_recv(rmc_wq_t *wq,int snid,uint16_t sending_qp,uint16_t slot_idx)
     if (wq->head >= MAX_NUM_WQ) {
         wq->head = 0;
         wq->SR ^= 1;
+    }
+}
+
+int get_send_slot(send_metadata_t* slot_data,size_t len)
+{ 
+    for(size_t i = 0; i < len; i++) {
+        int old = slot_data[i].valid.exchange(0);
+        if( old ) { // got slot
+            return slot_data[i].sslot_index;
+        }
+    }
+    return -1; // all slots were full
+}
+
+void print_cbuf(char* buf, size_t len)
+{
+    for(unsigned i = 0; i < len;i++) {
+        printf("Buffer[%d] = %c\n",i,buf[i]);
     }
 }

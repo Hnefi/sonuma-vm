@@ -8,8 +8,14 @@ set(LIBSONUMA_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libsonuma)
 set(RMCDAEMON_DIR ${CMAKE_CURRENT_SOURCE_DIR}/softrmc_daemon)
 set(RMCDRIVER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/softrmc_driver)
 
+set(LIBSON_SOURCES
+    ${LIBSONUMA_DIR}/sonuma_daemon.cpp
+    ${LIBSONUMA_DIR}/sonuma_trampoline.c
+    )
+
+
 #Libsonuma
-add_library(sonuma SHARED ${LIBSONUMA_DIR}/sonuma_daemon.cpp)
+add_library(sonuma SHARED ${LIBSON_SOURCES})
 target_link_libraries(sonuma ${LIBRARIES})
 target_compile_options(sonuma PUBLIC -D_GNU_SOURCE) # For sys/ipc.h
 target_include_directories(sonuma PUBLIC ${LIBSONUMA_DIR})

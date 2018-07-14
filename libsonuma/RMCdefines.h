@@ -51,8 +51,14 @@
 #define PAGE_SIZE 4096
 #define MSGS_PER_PAIR 16
 
-#include <atomic> // Msutherl
-#include <cstdio> // Msutherl
+#include <stdbool.h>
+
+#ifdef __cplusplus
+    #include <cstdint>
+#else
+    #include <stdint.h>
+#endif
+
 
 typedef struct wq_entry {
   uint8_t op;
@@ -105,9 +111,23 @@ typedef struct sslot {
     uint16_t wq_entry_idx;
 } send_slot_t;
 
-typedef struct send_slot_metadata {
-    std::atomic<int> valid;
-    unsigned sslot_index;
-} send_metadata_t;
+#ifdef __cplusplus
+#include <atomic> // Msutherl
+#include <cstdio> // Msutherl
+class send_metadata_t {
+    public:
+        std::atomic<int> valid;
+        unsigned sslot_index;
+        uint64_t msg_size;
+        uint16_t sending_qp;
+        uint16_t wq_entry_idx;
+};
+
+#else 
+
+// this is C, forward declare this
+typedef struct send_metadata_t send_metadata_t;
+
+#endif
 
 #endif /* H_RMC_DEFINES */
