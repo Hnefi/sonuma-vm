@@ -28,8 +28,13 @@ done
 
 sleep 30
 
+# in order for this to work, you need to set up /etc/sshd/sshd_config on the VMs with
+# all of the following manully (just once when you create the images):
+#   PasswordAuthentication yes
+#   PermitRootLogin yes
+#   $ service sshd restart
 echo "Copying servers.txt to all soN guests ${IPS[@]}....";
 for i in ${IPS[@]}; do
-    sshpass -p "sorpc" ssh-copy-id -f sorpc@$i;
-    scp servers.txt sorpc@$i:~/servers.txt;
+    sshpass -p "root" ssh-copy-id -f root@$i;
+    scp servers.txt root@$i:~/servers.txt;
 done
