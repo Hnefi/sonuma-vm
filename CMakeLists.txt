@@ -42,10 +42,9 @@ ADD_CUSTOM_TARGET(
     VERBATIM
     )
 ADD_CUSTOM_COMMAND(
-    TARGET rmc.ko
-    POST_BUILD
+    TARGET rmc.ko POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy 
-        $<TARGET_FILE:rmc.ko> ${CMAKE_SOURCE_DIR}/build
+    ${RMCDRIVER_DIR}/rmc.ko ${CMAKE_SOURCE_DIR}/build
     )
 
 # RMC Daemon
