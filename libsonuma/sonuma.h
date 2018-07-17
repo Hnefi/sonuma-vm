@@ -52,8 +52,10 @@
 
 #ifdef DEBUG_RMC
 #define DLog(M, ...) fprintf(stdout, "DEBUG %s:%d: " M "\n", __FILE__, __LINE__, ##__VA_ARGS__)
+#define DLogNoVar(M) fprintf(stdout, "DEBUG %s:%d: " M "\n", __FILE__, __LINE__)
 #else
 #define DLog(M, ...)
+#define DLogNoVar(M)
 #endif
 
 #ifdef DEBUG_PERF
@@ -128,7 +130,7 @@ static inline void rmc_rread_sync(rmc_wq_t *wq, rmc_cq_t *cq, uint8_t *lbuff_bas
   uint8_t wq_head = wq->head;
   uint8_t cq_tail = cq->tail;
   
-  DLogPerf("[rmc_rread_sync] rmc_rread_sync called.");
+  DLogPerf("[rmc_rread_sync] rmc_rread_sync called, snid = %d.",snid);
 
   while (wq->q[wq_head].valid) {} //wait for WQ head to be ready
 
@@ -179,7 +181,7 @@ static inline void rmc_rwrite_sync(rmc_wq_t *wq, rmc_cq_t *cq, uint8_t *lbuff_ba
   
   while (wq->q[wq_head].valid) {} //wait for WQ head to be ready
   
-  DLogPerf("[sonuma] rmc_rwrite_sync called.");
+  DLogPerf("[sonuma] rmc_rwrite_sync called, snid = %d.",snid);
 
   wq->q[wq_head].buf_addr = (uint64_t)lbuff_base;
   wq->q[wq_head].buf_offset = lbuff_offset;
@@ -222,7 +224,7 @@ static inline void rmc_rwrite_sync(rmc_wq_t *wq, rmc_cq_t *cq, uint8_t *lbuff_ba
 //CAUTION: make sure you call rmc_check_cq() before this function
 static inline void rmc_rread_async(rmc_wq_t *wq, uint8_t *lbuff_base, uint64_t lbuff_offset,int snid, uint32_t ctx_id, uint64_t ctx_offset, uint64_t length)
 {
-  DLogPerf("[sonuma] rmc_rread_async called.");
+  DLogPerf("[sonuma] rmc_rread_async called, snid = %d",snid);
   
   uint8_t wq_head = wq->head;
   
@@ -253,7 +255,7 @@ static inline void rmc_rread_async(rmc_wq_t *wq, uint8_t *lbuff_base, uint64_t l
 static inline void rmc_rwrite_async(rmc_wq_t *wq, uint8_t *lbuff_base, uint64_t lbuff_offset,
 				    int snid, uint32_t ctx_id, uint64_t ctx_offset, uint64_t length)
 {  
-  DLogPerf("[sonuma] rmc_rwrite_async called.");
+  DLogPerf("[sonuma] rmc_rwrite_async called, snid = %d",snid);
   
   uint8_t wq_head = wq->head;
 

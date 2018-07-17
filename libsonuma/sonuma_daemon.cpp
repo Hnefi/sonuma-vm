@@ -53,7 +53,7 @@ int kal_reg_wq(int fd, rmc_wq_t **wq_ptr, int wq_id)
 {
   int shmid;
   
-  DLog("[kal_reg_wq] kal_reg_wq called.");
+  DLog("[kal_reg_wq] kal_reg_wq called, with wq_id = %d",wq_id);
   char fmt[15];
   sprintf(fmt,"wq_ref_%d.txt",wq_id);
   FILE *f = fopen(fmt, "r");
@@ -76,7 +76,7 @@ int kal_reg_wq(int fd, rmc_wq_t **wq_ptr, int wq_id)
 int kal_reg_cq(int fd, rmc_cq_t **cq_ptr, int cq_id)
 {
   int shmid;
-  DLog("[kal_reg_cq] kal_reg_cq called.");
+  DLog("[kal_reg_cq] kal_reg_cq called, with wq_id = %d.",wq_id);
   
   char fmt[15];
   sprintf(fmt,"cq_ref_%d.txt",cq_id);
@@ -128,7 +128,7 @@ int kal_reg_ctx(int fd, uint8_t **ctx_ptr, uint32_t num_pages)
   int shmid;
   FILE *f;
 
-  DLog("[kal_reg_ctx] kal_reg_ctx called.");
+  DLog("[kal_reg_ctx] kal_reg_ctx called, with num-pages = %d.",num_pages);
   
   if(*ctx_ptr == NULL) {
     f = fopen("ctx_ref.txt", "r");
@@ -144,7 +144,7 @@ int kal_reg_ctx(int fd, uint8_t **ctx_ptr, uint32_t num_pages)
     
     memset(*ctx_ptr, 0, num_pages);
   } else {
-    DLog("[kal_reg_ctx] error: context memory allready allocated\n");
+    DLogNoVar("[kal_reg_ctx] error: context memory already allocated");
     return -1;
   }
 
@@ -157,7 +157,7 @@ int kal_reg_ctx(int fd, uint8_t **ctx_ptr, uint32_t num_pages)
 void rmc_send(rmc_wq_t *wq, char *lbuff_ptr, int lbuff_offset, size_t size, int snid, uint16_t sending_qp, send_slot_t* send_slot,uint16_t slot_idx)
 {
     uint8_t wq_head = wq->head;
-    DLog("[rmc_send] Entering rmc_send.");
+    DLogNoVar("[rmc_send] Entering rmc_send.");
 
     // setup send slot for RMC
     send_slot->valid = 1;
@@ -194,7 +194,7 @@ void rmc_recv(rmc_wq_t *wq,int snid,uint16_t sending_qp,uint16_t slot_idx)
     // create WQ entry, response for arguments given to CQ
     uint8_t wq_head = wq->head;
 
-    DLog("[rmc_recv] rmc_recv called.");
+    DLogNoVar("[rmc_recv] rmc_recv called.");
 
     while (wq->q[wq_head].valid) {} //wait for WQ head to be ready
 
