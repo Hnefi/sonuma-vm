@@ -70,7 +70,6 @@ typedef struct rpcArgument {
     uint16_t sending_nid;
     cq_entry_t* head;
     void* owner;
-
 } rpcArg_t;
 
 typedef void (async_handler)(uint8_t tid, wq_entry_t *head, void *owner);
@@ -115,21 +114,8 @@ int kal_reg_ctx(int fd, uint8_t **ctx_ptr, uint32_t num_pages);
 void rmc_recv(rmc_wq_t *wq,int snid,uint16_t sending_qp,uint16_t slot_idx);
 
 /* Msutherl: New version of rmc_send, using paired send/recv slots */
-void rmc_send(rmc_wq_t *wq, char *lbuff_ptr, int lbuff_offset, size_t size, int snid, uint16_t sending_qp, send_slot_t* send_slot,uint16_t slot_idx);
-/*
-#ifdef DEBUG_RMC
-        printf("TEST: i = %d, value = %d\n",
-                i, slot_data[i].valid.load());
-#endif
-#ifdef DEBUG_RMC
-            printf("ACQUITED: i = %d, value = %d\n",
-                i, slot_data[i].valid.load());
-#endif
-#ifdef DEBUG_RMC
-            printf("FAILED: i = %d, value = %d\n",
-                i, slot_data[i].valid.load());
-#endif
-            */
+void rmc_send(rmc_wq_t *wq, char *lbuff_ptr, int lbuff_offset, size_t size, int snid, uint16_t sending_qp, send_metadata_t* send_slot,uint16_t slot_idx);
+
 //inline methods
 static inline void rmc_rread_sync(rmc_wq_t *wq, rmc_cq_t *cq, uint8_t *lbuff_base,
 				  uint64_t lbuff_offset, int snid, uint32_t ctx_id,
