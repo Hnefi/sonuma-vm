@@ -71,10 +71,12 @@
 
 #define BILLION 1000000000
 
-#ifndef DEBUG_RMC
-#define DLog(M, ...)
+#ifdef DEBUG_RMC
+#define DLog(M, ...) fprintf(stdout, "DEBUG %s:%d: " M "\n", __FILE__, __LINE__, ##__VA_ARGS__)
+#define DLogNoVar(M) fprintf(stdout, "DEBUG %s:%d: " M "\n", __FILE__, __LINE__)
 #else
-#define DLog(M, ...) fprintf(stdout, "DEBUG %s:%ld: " M "\n", __FILE__, __LINE__, ##__VA_ARGS__)
+#define DLog(M, ...)
+#define DLogNoVar(M)
 #endif
 
 typedef struct server_info {

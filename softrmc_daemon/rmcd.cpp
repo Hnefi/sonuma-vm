@@ -192,7 +192,7 @@ int alloc_wq(rmc_wq_t **qp_wq, int wq_id)
     DLog("[alloc_wq] WQueue mlock returned %d", retcode);
     return -1;
   } else {
-    DLog("[alloc_wq] WQ was pinned successfully.");
+    DLogNoVar("[alloc_wq] WQ was pinned successfully.");
   }
 
   //setup work queue
@@ -231,7 +231,7 @@ int alloc_cq(rmc_cq_t **qp_cq, int cq_id)
   rmc_cq_t *cq = *qp_cq; 
   
   if (cq == NULL) {
-    DLog("[alloc_cq] Completion Queue could not be allocated.");
+    DLogNoVar("[alloc_cq] Completion Queue could not be allocated.");
     return -1;
   }
   
@@ -243,7 +243,7 @@ int alloc_cq(rmc_cq_t **qp_cq, int cq_id)
     DLog("[alloc_cq] CQueue mlock returned %d", retcode);
     return -1;
   } else {
-    DLog("[alloc_cq] CQ was pinned successfully.");
+    DLogNoVar("[alloc_cq] CQ was pinned successfully.");
   }
 
   //setup completion queue
@@ -277,7 +277,7 @@ int local_buf_alloc(char **mem,const char* fname,size_t npages)
   }
 
   if (*mem == NULL) {
-    DLog("[local_buf_alloc] Local buffer could have not be allocated.");
+    DLogNoVar("[local_buf_alloc] Local buffer could have not be allocated.");
     return -1;
   }
   
@@ -288,7 +288,7 @@ int local_buf_alloc(char **mem,const char* fname,size_t npages)
     DLog("[local_buf_alloc] mlock returned %d", retcode);
     return -1;
   } else {
-    DLog("[local_buf_alloc] was pinned successfully.");
+    DLogNoVar("[local_buf_alloc] was pinned successfully.");
   }
 
   DLog("[local_buf_alloc] Successfully created app-mapped lbuf with name = %s\n",
@@ -808,7 +808,7 @@ int main(int argc, char **argv)
                   case 'a': ;
                       // TODO: model rendezvous method of transfer
                   default:
-                      DLog("Un-implemented op. in WQ entry. drop it on the floor.\n");
+                      DLogNoVar("Un-implemented op. in WQ entry. drop it on the floor.\n");
               } // switch WQ entry types
 
 #ifdef DEBUG_PERF_RMC
@@ -851,7 +851,7 @@ int main(int argc, char **argv)
                   //mark the entry as invalid, i.e. completed
                   curr->valid = 0;
               } else 
-                  DLog("Un-implemented op. in WQ entry. drop it on the floor.\n");
+                  DLogNoVar("Un-implemented op. in WQ entry. drop it on the floor.\n");
 
 #ifdef DEBUG_PERF_RMC
               clock_gettime(CLOCK_MONOTONIC, &end_time);
@@ -971,7 +971,7 @@ int main(int argc, char **argv)
                               break;
                           }
                       default:
-                        DLog("Garbage op. in stream recv. from socket.... drop it on the floor.\n");
+                        DLogNoVar("Garbage op. in stream recv. from socket.... drop it on the floor.\n");
                   }
               } else ; // perror("[rmc_poll] got error:\n");
           }

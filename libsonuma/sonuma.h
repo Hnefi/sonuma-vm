@@ -66,8 +66,16 @@
 
 void print_cbuf(char* buf, size_t len);
 
+typedef struct rpcArgument {
+    uint16_t sending_nid;
+    cq_entry_t* head;
+    void* owner;
+
+} rpcArg_t;
+
 typedef void (async_handler)(uint8_t tid, wq_entry_t *head, void *owner);
 typedef void (rpc_handler)(uint16_t sending_nid, char* recv_slot, cq_entry_t *head, void *owner);
+typedef void (receiveCallback)(char* rawRecvBufferPtr, rpcArg_t* argPointer);
 
 /**
  * This func opens connection with kernel driver (KAL).
@@ -337,32 +345,37 @@ static inline int rmc_drain_cq(rmc_wq_t *wq, rmc_cq_t *cq, async_handler *handle
   return 0;
 }
 
-static inline void rmc_poll_cq_rpc(rmc_cq_t* cq, char** recv_slots, rpc_handler* theRPC, uint16_t* sending_nid, uint16_t* sending_qp,uint16_t* slot_idx)
+static inline void rmc_poll_cq_rpc(rmc_cq_t* cq, char** recv_slots, receiveCallback* theRPC, uint16_t* sending_nid, uint16_t* sending_qp,uint16_t* slot_idx)
 {
-  uint8_t cq_tail = cq->tail;
+    uint8_t cq_tail = cq->tail;
 
-  printf("Polling CQ[%d].SR = %d. CQ->SR = %d\n",
-          cq_tail, cq->q[cq_tail].SR, cq->SR);
-  // wait for entry to arrive in cq
-  while(cq->q[cq_tail].SR != cq->SR ) { }
-  printf("Valid entry in CQ (index %d)! Entry SR = %d, Q. SR = %d. recv. bufs index = %d\n",cq_tail,cq->q[cq_tail].SR,cq->SR,cq->q[cq_tail].slot_idx);
-  // call handler and set nid for sending wq in return
-  *sending_nid = cq->q[cq_tail].sending_nid;
-  *sending_qp = cq->q[cq_tail].tid;
-  *slot_idx = cq->q[cq_tail].slot_idx;
+    printf("Polling CQ[%d].SR = %d. CQ->SR = %d\n",
+            cq_tail, cq->q[cq_tail].SR, cq->SR);
+    // wait for entry to arrive in cq
+    while(cq->q[cq_tail].SR != cq->SR ) { }
+    printf("Valid entry in CQ (index %d)! Entry SR = %d, Q. SR = %d. recv. bufs index = %d\n",cq_tail,cq->q[cq_tail].SR,cq->SR,cq->q[cq_tail].slot_idx);
+    // call handler and set nid for sending wq in return
+    *sending_nid = cq->q[cq_tail].sending_nid;
+    *sending_qp = cq->q[cq_tail].tid;
+    *slot_idx = cq->q[cq_tail].slot_idx;
 
-  char* node_recv_slot = recv_slots[*sending_nid];
-  theRPC(*sending_nid, (node_recv_slot + (MAX_RPC_BYTES*(*slot_idx))), &(cq->q[cq_tail]), NULL);
+    char* node_recv_slot = recv_slots[*sending_nid];
+    // marshal rpc structure
+    rpcArg_t args;
+    args.sending_nid = *sending_nid;
+    args.head = &(cq->q[cq_tail]);
+    args.owner = NULL;
+    theRPC((node_recv_slot + (MAX_RPC_BYTES*(*slot_idx))), &args);
 
-  cq->tail = cq->tail + 1;
-  //check if CQ reached its end
-  if (cq->tail >= MAX_NUM_WQ) {
-      cq->tail = 0;
-      cq->SR ^= 1;
-  }
+    cq->tail = cq->tail + 1;
+    //check if CQ reached its end
+    if (cq->tail >= MAX_NUM_WQ) {
+        cq->tail = 0;
+        cq->SR ^= 1;
+    }
 }
 
-static inline void rmc_test_cq_rpc(rmc_cq_t* cq, char* recv_slots, rpc_handler* theRPC,int* sending_nid, uint16_t* sending_qp,uint16_t* slot_idx)
+static inline void rmc_test_cq_rpc(rmc_cq_t* cq, char** recv_slots, receiveCallback* theRPC,int* sending_nid, uint16_t* sending_qp,uint16_t* slot_idx)
 {
   uint8_t cq_tail = cq->tail;
 
@@ -373,7 +386,14 @@ static inline void rmc_test_cq_rpc(rmc_cq_t* cq, char* recv_slots, rpc_handler* 
       *sending_nid = cq->q[cq_tail].sending_nid;
       *sending_qp = cq->q[cq_tail].tid;
       *slot_idx = cq->q[cq_tail].slot_idx;
-      theRPC(*sending_nid, (recv_slots + (MAX_RPC_BYTES*(*slot_idx))), &(cq->q[cq_tail]), NULL);
+
+      // marshal rpc structure
+      char* node_recv_slot = recv_slots[*sending_nid];
+      rpcArg_t args;
+      args.sending_nid = *sending_nid;
+      args.head = &(cq->q[cq_tail]);
+      args.owner = NULL;
+      theRPC((node_recv_slot + (MAX_RPC_BYTES*(*slot_idx))), &args);
 
       cq->tail = cq->tail + 1;
       //check if CQ reached its end
