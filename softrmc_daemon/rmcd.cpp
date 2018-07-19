@@ -961,9 +961,10 @@ int main(int argc, char **argv)
                                       sending_qp,
                                       slot_to_reuse);
                               // Operations: invalidate send slots and avail-tracker
-                              send_slot_t* slots_from_node = (send_slot_t*)sslots[i];
+                              /*send_slot_t* slots_from_node = (send_slot_t*)sslots[i];
                               send_slot_t* reuseMe = (slots_from_node + slot_to_reuse);
                               reuseMe->valid = 0;
+                              */
                               send_metadata_t* meta_from_node = (send_metadata_t*)avail_slots[i];
                               send_metadata_t* meToo = (meta_from_node + slot_to_reuse);
                               int old = meToo->valid.exchange(1);
