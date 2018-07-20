@@ -76,7 +76,7 @@ int kal_reg_wq(int fd, rmc_wq_t **wq_ptr, int wq_id)
 int kal_reg_cq(int fd, rmc_cq_t **cq_ptr, int cq_id)
 {
   int shmid;
-  DLog("[kal_reg_cq] kal_reg_cq called, with wq_id = %d.",wq_id);
+  DLog("[kal_reg_cq] kal_reg_cq called, with wq_id = %d.",cq_id);
   
   char fmt[15];
   sprintf(fmt,"cq_ref_%d.txt",cq_id);
