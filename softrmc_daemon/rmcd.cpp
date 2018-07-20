@@ -737,9 +737,9 @@ int main(int argc, char **argv)
               char wq_entry_buf[180];
               int stringify_return = stringify_wq_entry((wq_entry_t*)curr,wq_entry_buf);
               if( stringify_return < 0 ) {
-                  DLog("COULD NOT STRINGIFY CURR!!!!\n");
+                  DLogNoVar("COULD NOT STRINGIFY CURR!!!!\n");
               } else {
-                DLog("%s",wq_entry_buf);
+                  DLog("%s",wq_entry_buf);
               }
 #endif
 
@@ -771,7 +771,7 @@ int main(int argc, char **argv)
                           uint32_t copy = bytesToSend;
                           char* packedBuffer = new char[bytesToSend];
                           msg.pack(packedBuffer);
-#if 0
+#ifdef PRINT_BUFS
                           DLog("Printing RPC Buffer after pack.\n");
                           print_cbuf(packedBuffer, bytesToSend);
 #endif

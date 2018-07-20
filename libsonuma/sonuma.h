@@ -335,11 +335,11 @@ static inline void rmc_poll_cq_rpc(rmc_cq_t* cq, char** recv_slots, receiveCallb
 {
     uint8_t cq_tail = cq->tail;
 
-    printf("Polling CQ[%d].SR = %d. CQ->SR = %d\n",
+    DLog("Polling CQ[%d].SR = %d. CQ->SR = %d\n",
             cq_tail, cq->q[cq_tail].SR, cq->SR);
     // wait for entry to arrive in cq
     while(cq->q[cq_tail].SR != cq->SR ) { }
-    printf("Valid entry in CQ (index %d)! Entry SR = %d, Q. SR = %d. recv. bufs index = %d\n",cq_tail,cq->q[cq_tail].SR,cq->SR,cq->q[cq_tail].slot_idx);
+    DLog("Valid entry in CQ (index %d)! Entry SR = %d, Q. SR = %d. recv. bufs index = %d\n",cq_tail,cq->q[cq_tail].SR,cq->SR,cq->q[cq_tail].slot_idx);
     // call handler and set nid for sending wq in return
     *sending_nid = cq->q[cq_tail].sending_nid;
     *sending_qp = cq->q[cq_tail].tid;
@@ -367,7 +367,7 @@ static inline void rmc_test_cq_rpc(rmc_cq_t* cq, char** recv_slots, receiveCallb
 
   // wait for entry to arrive in cq
   if(cq->q[cq_tail].SR == cq->SR ) { 
-      printf("Valid entry in CQ (index %d)! Entry SR = %d, Q. SR = %d. recv_buf index = %d\n",cq_tail,cq->q[cq_tail].SR,cq->SR,cq->q[cq_tail].slot_idx);
+      DLog("Valid entry in CQ (index %d)! Entry SR = %d, Q. SR = %d. recv_buf index = %d\n",cq_tail,cq->q[cq_tail].SR,cq->SR,cq->q[cq_tail].slot_idx);
       // call handler and set nid for sending wq in return
       *sending_nid = cq->q[cq_tail].sending_nid;
       *sending_qp = cq->q[cq_tail].tid;
