@@ -124,6 +124,7 @@ uint8_t get_server_qp(volatile rmc_cq_t** cqs,uint8_t* local_cq_heads, int num_q
 }
 
 static uint8_t qp_rr = 0;
+static unsigned int qp_num_mod;
 uint8_t get_server_qp_rrobin() { return (qp_rr++) % 4; }
 
 void print_cbuf(char* buf, size_t len)
@@ -629,6 +630,7 @@ int main(int argc, char **argv)
   node_cnt = atoi(argv[1]);
   this_nid = atoi(argv[2]);
   unsigned num_qps = atoi(argv[3]);
+  qp_num_mod = num_qps;
   
   wqs = (volatile rmc_wq_t**) calloc(num_qps,sizeof(rmc_wq_t*));
   cqs = (volatile rmc_cq_t**) calloc(num_qps,sizeof(rmc_cq_t*));
