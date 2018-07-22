@@ -967,8 +967,11 @@ int main(int argc, char **argv)
                               */
                               send_metadata_t* meta_from_node = (send_metadata_t*)avail_slots[i];
                               send_metadata_t* meToo = (meta_from_node + slot_to_reuse);
-                              int old = meToo->valid.exchange(1);
-                              assert( old == 0 );
+
+                              // use CAS to ensure previous value
+                              int test_val = 0, new_val = 1;
+                              bool success = meToo->valid.compare_exchange_strong(test_val, new_val); // 
+                              assert( success );
                               break;
                           }
                       default:
