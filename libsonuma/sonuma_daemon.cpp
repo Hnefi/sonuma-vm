@@ -169,7 +169,7 @@ void rmc_send(rmc_wq_t *wq, char *lbuff_ptr, int lbuff_offset, size_t size, int 
     wq->q[wq_head].buf_addr = (uint64_t)lbuff_ptr;
     wq->q[wq_head].buf_offset = lbuff_offset;
 #ifdef PRINT_BUFS
-    print_cbuf( (char*)lbuff_ptr , size );
+    DumpHex( (char*)lbuff_ptr , size );
 #endif
     if(size < 64) wq->q[wq_head].length = 64; //at least 64B
     else wq->q[wq_head].length = size;
@@ -225,11 +225,4 @@ int get_send_slot(send_metadata_t* slot_data,size_t len)
         }
     }
     return -1; // all slots were full
-}
-
-void print_cbuf(char* buf, size_t len)
-{
-    for(unsigned i = 0; i < len;i++) {
-        printf("Buffer[%d] = %c\n",i,buf[i]);
-    }
 }

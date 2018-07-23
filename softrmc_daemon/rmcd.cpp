@@ -128,13 +128,6 @@ static uint8_t qp_rr = 0;
 static unsigned int qp_num_mod;
 uint8_t get_server_qp_rrobin() { return (qp_rr++) % qp_num_mod; }
 
-void print_cbuf(char* buf, size_t len)
-{
-    for(int i = 0; i < len;i++) {
-        printf("Buffer[%d] = %02x\n",i,buf[i]);
-    }
-}
-
 // Taken from Beej's guide to Network Programming:
 // http://beej.us/guide/bgnet/html/multi/advanced.html
 int sendall(int sock_fd, char* buf, unsigned* bytesToSend)
@@ -764,7 +757,7 @@ int main(int argc, char **argv)
                           int receiver = curr->nid;
 #ifdef PRINT_BUFS
                           DLog("Printing RPC Buffer before send.\n");
-                          print_cbuf( (char*)(local_buffer + curr->buf_offset), curr->length);
+                          DumpHex( (char*)(local_buffer + curr->buf_offset), curr->length);
 #endif
                           // 1) Take QP metadata and create RMC_Message class
                           // 2) Serialize/pack
@@ -776,7 +769,7 @@ int main(int argc, char **argv)
                           msg.pack(packedBuffer);
 #ifdef PRINT_BUFS
                           DLog("Printing RPC Buffer after pack.\n");
-                          print_cbuf(packedBuffer, bytesToSend);
+                          DumpHex(packedBuffer, bytesToSend);
 #endif
                           unsigned retval = sendall(sinfo[receiver].fd,packedBuffer,&bytesToSend);
                           if( retval < 0 ) {
@@ -909,7 +902,7 @@ int main(int argc, char **argv)
 #ifdef PRINT_BUFS
                   DLog("[rmc_poll] got rest of message, nbytes = %d\n",nrecvd);
                   DLog("Printing RPC Buffer after full message received.\n");
-                  print_cbuf( (char*)rbuf, nrecvd+RMC_Message::getLenParamBytes() );
+                  DumpHex( (char*)rbuf, nrecvd+RMC_Message::getLenParamBytes() );
 #endif
                   RMC_Message msgReceived = unpackToRMC_Message(rbuf);
                   switch( msgReceived.msg_type ) {
