@@ -48,6 +48,7 @@
 
 #include "rmcd.h"
 #include "son_msg.h"
+#include "sonuma.h"
 
 using namespace std;
 
