@@ -970,10 +970,17 @@ int main(int argc, char **argv)
                               send_metadata_t* meta_from_node = (send_metadata_t*)avail_slots[i];
                               send_metadata_t* meToo = (meta_from_node + slot_to_reuse);
 
-                              // use CAS to ensure previous value
+                              // use CAS to ensure previous value is reset
                               int test_val = 0, new_val = 1;
-                              bool success = meToo->valid.compare_exchange_strong(test_val, new_val); // 
-                              assert( success );
+                              bool success = meToo->valid.compare_exchange_strong(test_val, new_val);
+                              if( !success ) {
+                                  assert( test_val == 1 );
+                                  std::cout << "WE HAD SOME MAJOR FAILURE HERE." << std::endl
+                                            << "\t RMC tried to reset send slot #" << slot_to_reuse
+                                            << ", belonging to node #" << i
+                                            << ", and found that its value was not 0. Value loaded: " << test_val << std::endl;
+                                  exit(-1);
+                              }
                               break;
                           }
                       default:
