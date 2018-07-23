@@ -125,7 +125,7 @@ uint8_t get_server_qp(volatile rmc_cq_t** cqs,uint8_t* local_cq_heads, int num_q
 
 static uint8_t qp_rr = 0;
 static unsigned int qp_num_mod;
-uint8_t get_server_qp_rrobin() { return (qp_rr++) % 4; }
+uint8_t get_server_qp_rrobin() { return (qp_rr++) % qp_num_mod; }
 
 void print_cbuf(char* buf, size_t len)
 {
