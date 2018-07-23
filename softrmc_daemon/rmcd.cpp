@@ -757,7 +757,7 @@ int main(int argc, char **argv)
                           // send rmc->rmc rpc
                           int receiver = curr->nid;
 #ifdef PRINT_BUFS
-                          DLog("Printing RPC Buffer before send.\n");
+                          DLog("Printing RPC Buffer IN rmcd, BEFORE serialization.\n");
                           DumpHex( (char*)(local_buffer + curr->buf_offset), curr->length);
 #endif
                           // 1) Take QP metadata and create RMC_Message class

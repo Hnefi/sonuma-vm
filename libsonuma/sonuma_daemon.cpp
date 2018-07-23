@@ -169,6 +169,7 @@ void rmc_send(rmc_wq_t *wq, char *lbuff_ptr, int lbuff_offset, size_t size, int 
     wq->q[wq_head].buf_addr = (uint64_t)lbuff_ptr;
     wq->q[wq_head].buf_offset = lbuff_offset;
 #ifdef PRINT_BUFS
+    DLogNoVar("[rmc_send]: Printing contents of lbuff_ptr");
     DumpHex( (char*)lbuff_ptr , size );
 #endif
     if(size < 64) wq->q[wq_head].length = 64; //at least 64B
