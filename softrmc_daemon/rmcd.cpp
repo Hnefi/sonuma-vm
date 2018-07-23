@@ -44,6 +44,7 @@
 #include <vector>
 #include <bitset>
 #include <algorithm>
+#include <iostream>
 
 #include "rmcd.h"
 #include "son_msg.h"
