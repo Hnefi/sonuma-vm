@@ -906,6 +906,10 @@ int main(int argc, char **argv)
                   DumpHex( (char*)rbuf, nrecvd+RMC_Message::getLenParamBytes() );
 #endif
                   RMC_Message msgReceived = unpackToRMC_Message(rbuf);
+#ifdef PRINT_BUFS
+                  DLog("Printing RPC Buffer after unpack to payload.\n");
+                  DumpHex( msgReceived.payload.data() , msgReceived.getRequiredLenBytes() );
+#endif
                   switch( msgReceived.msg_type ) {
                     // check whether it's an rpc send, or recv to already sent rpc
                       case 's':
@@ -918,6 +922,10 @@ int main(int argc, char **argv)
                                   + (recv_slot * (MAX_RPC_BYTES));
                               size_t arg_len = msgLengthReceived - RMC_Message::getMessageHeaderBytes();
                               memcpy((void*) recv_slot_ptr,msgReceived.payload.data(),arg_len);
+#ifdef PRINT_BUFS
+                              DLog("[rmc_poll] After unpacking, message len: %d", msgReceived.getRequiredLenBytes() );
+                              DumpHex( recv_slot_ptr , msgReceived.getRequiredLenBytes() );
+#endif
                               uint8_t qp_to_terminate = get_server_qp_rrobin();
                               cq = cqs[qp_to_terminate];
                               while ( !cq->connected ) {
