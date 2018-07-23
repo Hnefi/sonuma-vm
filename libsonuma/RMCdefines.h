@@ -83,6 +83,7 @@ typedef struct cq_entry {
       uint16_t sending_nid;
       uint16_t sending_qp;
       uint16_t slot_idx;
+      uint64_t length;
 } cq_entry_t;
 
 typedef struct rmc_wq {

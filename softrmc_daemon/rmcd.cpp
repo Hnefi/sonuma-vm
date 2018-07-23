@@ -923,7 +923,7 @@ int main(int argc, char **argv)
                               size_t arg_len = msgLengthReceived - RMC_Message::getMessageHeaderBytes();
                               memcpy((void*) recv_slot_ptr,msgReceived.payload.data(),arg_len);
 #ifdef PRINT_BUFS
-                              DLog("[rmc_poll] After unpacking, message len: %d", msgReceived.getRequiredLenBytes() );
+                              DLog("[rmc_poll] After memcpy-ing unpacked data, message len: %d", msgReceived.getRequiredLenBytes() );
                               DumpHex( recv_slot_ptr , msgReceived.getRequiredLenBytes() );
 #endif
                               uint8_t qp_to_terminate = get_server_qp_rrobin();
@@ -938,6 +938,7 @@ int main(int argc, char **argv)
                               cq->q[*local_cq_head].sending_nid = i;
                               cq->q[*local_cq_head].tid = sending_qp;
                               cq->q[*local_cq_head].slot_idx = recv_slot;
+                              cq->q[*local_cq_head].length = arg_len ;
                               DLog("Received rpc SEND (\'s\') at rmc #%d. Receive-side QP info is:\n"
                                       "\t{ qp_to_terminate : %d },\n"
                                       "\t{ local_cq_head : %d },\n"

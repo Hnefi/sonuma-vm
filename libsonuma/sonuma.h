@@ -349,6 +349,10 @@ static inline void rmc_poll_cq_rpc(rmc_cq_t* cq, char** recv_slots, receiveCallb
     args.sending_nid = *sending_nid;
     args.head = &(cq->q[cq_tail]);
     args.owner = NULL;
+#ifdef PRINT_BUFS
+    DLog("About to call back to the RPC handler itself. Sending NID: %d, slot_idx: %d, length: %d",*sending_nid, *slot_idx, cq->q[cq_tail].length);
+    DumpHex( (node_recv_slot + (MAX_RPC_BYTES*(*slot_idx))), cq->q[cq_tail].length );
+#endif
     theRPC((node_recv_slot + (MAX_RPC_BYTES*(*slot_idx))), &args);
 
     cq->tail = cq->tail + 1;
