@@ -73,7 +73,6 @@ target_include_directories(rmcd PUBLIC ${LIBSONUMA_DIR})
 
 # Sample code
 foreach(f ${SCODE_CPP})
-    message("Adding ${f}")
     add_executable(${f} ${SAMPLE_DIR}/${f}.cpp)
     target_link_libraries(${f} sonuma rt)
 endforeach()
