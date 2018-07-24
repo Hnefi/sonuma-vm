@@ -33,9 +33,6 @@
  *  Remote read test for libsonuma and SoftRMC
  */
 
-#include <vector>
-#include <algorithm>
-
 #include "sonuma.h"
 
 #define ITERS 4096

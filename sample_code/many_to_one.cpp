@@ -54,11 +54,12 @@ static __inline__ unsigned long long rdtsc(void)
     return ((unsigned long long)lo) | (((unsigned long long)hi)<<32) ;
 }
 
-void handler(uint16_t tid, char* recv_slot, cq_entry_t *head, void *owner) {
+//void handler(uint16_t tid, char* recv_slot, cq_entry_t *head, void *owner) {
+void handler(char* rawRecvPointer, rpcArg_t* argPointer) {
   printf("[pong]: Thread %d got pong from nid [%d] w. buf. string: %s\n",
           std::this_thread::get_id(),
-          tid,
-          recv_slot);
+          argPointer->sending_nid,
+          rawRecvPointer);
 }
 
 void messager_thread(int thread_num, int target_nid, int snid, int node_cnt, int rpc_size, int num_iter,
@@ -81,8 +82,9 @@ void messager_thread(int thread_num, int target_nid, int snid, int node_cnt, int
 
         int available_slot_index = -1;
         int wait_count = 0;
+        send_metadata_t* ptr = nullptr;
         while( available_slot_index < 0 ) {
-            send_metadata_t* ptr = (send_metadata_t*) (slot_metadata[target_nid]);
+            ptr = (send_metadata_t*) (slot_metadata[target_nid]);
             available_slot_index = get_send_slot(ptr,MSGS_PER_PAIR);
             if( available_slot_index < 0 ) {
                 printf("All slots full, wait #%d....\n",wait_count);
@@ -96,11 +98,8 @@ void messager_thread(int thread_num, int target_nid, int snid, int node_cnt, int
                 }
             }
         }
-        send_slot_t* target_node_slots = (send_slot_t*)sslots[target_nid];
-        send_slot_t* my_slot = (target_node_slots + available_slot_index);
-        printf("[tid %d] Got slot index: %d, and send slots pointer: %p\n",thread_num,available_slot_index,my_slot);
 
-        rmc_send(wq, (char*)lbuff, lbuff_slot, OBJ_READ_SIZE,target_nid,thread_num,my_slot,available_slot_index);
+        rmc_send(wq, (char*)lbuff, lbuff_slot, OBJ_READ_SIZE,target_nid,thread_num,ptr,available_slot_index);
 
         uint16_t sending_qp = 0, sending_nid = 0;
         uint16_t slot;

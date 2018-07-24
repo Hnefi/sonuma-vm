@@ -21,12 +21,30 @@ set(LIBRARIES ${LIBRARIES} c pthread rt)
 set(LIBSONUMA_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libsonuma)
 set(RMCDAEMON_DIR ${CMAKE_CURRENT_SOURCE_DIR}/softrmc_daemon)
 set(RMCDRIVER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/softrmc_driver)
+set(SAMPLE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/sample_code)
 
 set(LIBSON_SOURCES
     ${LIBSONUMA_DIR}/sonuma_daemon.cpp
     ${LIBSONUMA_DIR}/sonuma_trampoline.c
     )
 
+set(SAMPLE_CODE_FILES
+    bench_async
+    bench_sync
+    bench_server
+    many_to_one
+    rpc_service
+    rpc_sync
+    )
+
+set(SCODE_CPP
+    bench_async
+    bench_sync
+    bench_server
+    many_to_one
+    rpc_service
+    rpc_sync
+    )
 
 #Libsonuma
 add_library(sonuma SHARED ${LIBSON_SOURCES})
@@ -52,3 +70,10 @@ add_executable(rmcd ${RMCDAEMON_DIR}/rmcd.cpp ${RMCDAEMON_DIR}/son_msg.cpp)
 add_dependencies(rmcd rmc.ko) # fake dep just to build everything
 target_compile_options(rmcd PUBLIC -D_GNU_SOURCE) # For sys/ipc.h
 target_include_directories(rmcd PUBLIC ${LIBSONUMA_DIR})
+
+# Sample code
+foreach(f ${SCODE_CPP})
+    message("Adding ${f}")
+    add_executable(${f} ${SAMPLE_DIR}/${f}.cpp)
+    target_link_libraries(${f} sonuma rt)
+endforeach()
