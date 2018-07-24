@@ -907,8 +907,10 @@ int main(int argc, char **argv)
 #endif
                   RMC_Message msgReceived = unpackToRMC_Message(rbuf);
 #ifdef PRINT_BUFS
-                  DLog("Printing RPC Buffer after unpack to payload.\n");
-                  DumpHex( msgReceived.payload.data() , msgReceived.getRequiredLenBytes() );
+                  if( msgReceived.msg_type == 's' ) {
+                      DLog("Printing RPC Buffer after unpack to payload.\n");
+                      DumpHex( msgReceived.payload.data() , msgReceived.getRequiredLenBytes() );
+                  }
 #endif
                   switch( msgReceived.msg_type ) {
                     // check whether it's an rpc send, or recv to already sent rpc
