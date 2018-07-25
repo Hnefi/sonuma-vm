@@ -991,8 +991,6 @@ int main(int argc, char **argv)
                                           this_nid, 
                                           sending_qp,
                                           slot_to_reuse);
-                                  test_val = 0;
-                                  bool success = meToo->valid.compare_exchange_strong(test_val, new_val);
                               }
                               break;
                           }
