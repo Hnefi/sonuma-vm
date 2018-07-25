@@ -982,10 +982,17 @@ int main(int argc, char **argv)
                               if( !success ) {
                                   assert( test_val == 1 );
                                   std::cout << "WE HAD SOME MAJOR FAILURE HERE." << std::endl
-                                            << "\t RMC tried to reset send slot #" << slot_to_reuse
+                                            << "\t RMC tried to reset send slot #" << (unsigned int) slot_to_reuse
                                             << ", belonging to node #" << i
                                             << ", and found that its value was not 0. Value loaded: " << test_val << std::endl;
-                                  exit(-1);
+                                  printf("Error occurred on rpc RECV (\'g\') at rmc #%d. slot QP info is:\n"
+                                          "\t{ sender's QP : %d },\n"
+                                          "\t{ slot_to_reuse : %d },\n",
+                                          this_nid, 
+                                          sending_qp,
+                                          slot_to_reuse);
+                                  test_val = 0;
+                                  bool success = meToo->valid.compare_exchange_strong(test_val, new_val);
                               }
                               break;
                           }
