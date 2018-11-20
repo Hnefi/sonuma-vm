@@ -82,7 +82,7 @@ int stringify_wq_entry(wq_entry_t* entry,char* buf)
             " Senders QP = %u,"
             " Slot Index = %u,"
             " CTlx Offset = %#lx,"
-            " Read Length = %d }\n"
+            " Read Length = %lu }\n"
             , entry->op, entry->SR, entry->valid, entry->buf_addr, entry->buf_offset,
             entry->nid, entry->cid, entry->slot_idx, entry->offset, entry->length);
 }
@@ -133,7 +133,7 @@ uint8_t get_server_qp_rrobin() { return (qp_rr++) % qp_num_mod; }
 // http://beej.us/guide/bgnet/html/multi/advanced.html
 int sendall(int sock_fd, char* buf, unsigned* bytesToSend)
 {
-    int total = 0;
+    unsigned total = 0;
     int bytesLeft = *bytesToSend;
     int n;
 
@@ -327,7 +327,7 @@ static int soft_rmc_ctx_destroy()
   return 0;
 }
 
-static int net_init(int node_cnt, int this_nid, char *filename)
+static int net_init(int node_cnt, unsigned this_nid, char *filename)
 {
   FILE *fp;
   char *line = NULL;
@@ -373,7 +373,7 @@ int ctx_map(char **mem, unsigned page_cnt)
   int i;
     
   printf("[ctx_map] soft_rmc_alloc_ctx ->\n");
-  unsigned long dom_region_size = page_cnt * PAGE_SIZE;
+  //unsigned long dom_region_size = page_cnt * PAGE_SIZE;
     
   ctx[this_nid] = *mem;
   
@@ -420,7 +420,7 @@ int ctx_map(char **mem, unsigned page_cnt)
 
 int ctx_alloc_grant_map(char **mem, unsigned page_cnt)
 {
-  int i, srv_idx;
+  unsigned int srv_idx;
   int listen_fd;
   struct sockaddr_in servaddr; //listen
   struct sockaddr_in raddr; //connect, accept
@@ -464,7 +464,7 @@ int ctx_alloc_grant_map(char **mem, unsigned page_cnt)
   ctxl = (unsigned long *)*mem;
 
   //snovakov:need to do this to fault the pages into memory
-  for(i=0; i<(dom_region_size*sizeof(char))/8; i++) {
+  for(unsigned int i=0; i<(dom_region_size*sizeof(char))/8; i++) {
     ctxl[i] = 0;
   }
 
@@ -504,7 +504,7 @@ int ctx_alloc_grant_map(char **mem, unsigned page_cnt)
     exit(EXIT_FAILURE);
   }
 
-  for(i=0; i<node_cnt; i++) {
+  for(int i=0; i<node_cnt; i++) {
     if(i != this_nid) {
       if(i > this_nid) {
           printf("[ctx_alloc_grant_map] server accept..\n");
@@ -632,7 +632,7 @@ int main(int argc, char **argv)
   local_buffers = (char**) calloc(num_qps,sizeof(char*));
 
   //allocate a queue pair, arg bufs
-  for(int i = 0; i < num_qps; i++) {
+  for(unsigned int i = 0; i < num_qps; i++) {
       alloc_wq((rmc_wq_t **)&wqs[i],i);
       alloc_cq((rmc_cq_t **)&cqs[i],i);
       //allocate local buffers
@@ -690,7 +690,7 @@ int main(int argc, char **argv)
   uint8_t* compl_idx = (uint8_t*)calloc(num_qps,sizeof(uint8_t));
   
   volatile wq_entry_t* curr;
-  for(int ii = 0; ii < num_qps; ii++) { // init per-qp structures
+  for(unsigned int ii = 0; ii < num_qps; ii++) { // init per-qp structures
       local_WQ_tails[ii] = 0;
       local_WQ_SRs[ii] = 1;
       local_CQ_heads[ii] = 0;
@@ -713,7 +713,7 @@ int main(int argc, char **argv)
        * - Do one round of QP polling and process all entries.
        * - Then use poll() to look at all sockets for incoming rmc-rmc transfers
        */
-      for(int qp_num = 0; qp_num < num_qps; qp_num++) { // QP polling round
+      for(unsigned int qp_num = 0; qp_num < num_qps; qp_num++) { // QP polling round
           wq = wqs[qp_num];
           cq = cqs[qp_num];
           local_buffer = local_buffers[qp_num];
@@ -772,12 +772,12 @@ int main(int argc, char **argv)
                           DLog("Printing RPC Buffer after pack.\n");
                           DumpHex(packedBuffer, bytesToSend);
 #endif
-                          unsigned retval = sendall(sinfo[receiver].fd,packedBuffer,&bytesToSend);
+                          int retval = sendall(sinfo[receiver].fd,packedBuffer,&bytesToSend);
                           if( retval < 0 ) {
                               perror("[rmc_rpc] send failed, w. error:");
                           } else if ( bytesToSend < copy) {
                               printf("Only sent %d of %d bytes.... Do something about it!!!!\n",bytesToSend,copy);
-                          } else ;
+                          } else {}
                           delete packedBuffer;
                           break;
                       }
@@ -793,12 +793,12 @@ int main(int argc, char **argv)
                           uint32_t copy = bytesToSend;
                           char* packedBuffer = new char[bytesToSend];
                           msg.pack(packedBuffer);
-                          unsigned retval = sendall(sinfo[receiver].fd,packedBuffer,&bytesToSend);
+                          int retval = sendall(sinfo[receiver].fd,packedBuffer,&bytesToSend);
                           if( retval < 0 ) {
                               perror("[rmc_rpc] send failed, w. error:");
                           } else if ( bytesToSend < copy) {
                               printf("Only sent %d of %d bytes.... Do something about it!!!!\n",bytesToSend,copy);
-                          } else ;
+                          } else {}
                           delete packedBuffer;
                           break;
                       }
@@ -874,14 +874,14 @@ int main(int argc, char **argv)
       }// end loop over qps
 
       // Msutherl: check all sockets (sinfos) for outstanding rpc
-      uint32_t max_single_msg_size = MAX_RPC_BYTES + RMC_Message::getTotalHeaderBytes();
+      //uint32_t max_single_msg_size = MAX_RPC_BYTES + RMC_Message::getTotalHeaderBytes();
       for(i = 0; i < node_cnt; i++) {
           if( i != this_nid ) {
               char* rbuf = tmp_copies[i];
               // recv 4 bytes (header size) 
               int nrecvd = recv(sinfo[i].fd, rbuf, RMC_Message::getLenParamBytes() , MSG_DONTWAIT);
               int rec_round_2 = 0;
-              if( nrecvd > 0 && nrecvd < RMC_Message::getLenParamBytes() ) { 
+              if( nrecvd > 0 && nrecvd < (int) RMC_Message::getLenParamBytes() ) { 
                   DLog("[rmc_poll] got partial len from header, nbytes = %d\n",nrecvd);
                   rec_round_2 = recv(sinfo[i].fd, (rbuf+nrecvd), RMC_Message::getLenParamBytes() - nrecvd , 0); // block to get the rest of the header
                   if( rec_round_2 < 0 ) {
@@ -893,7 +893,7 @@ int main(int argc, char **argv)
               }
 
               // otherwise, we now have a full header
-              assert( (nrecvd + rec_round_2) >= RMC_Message::getLenParamBytes() );
+              assert( (nrecvd + rec_round_2) >= (int) RMC_Message::getLenParamBytes() );
 
               // read it and figure out how much else to wait for
               uint32_t msgLengthReceived = ntohl(*((uint32_t*)rbuf));
@@ -997,7 +997,7 @@ int main(int argc, char **argv)
                       default:
                         DLogNoVar("Garbage op. in stream recv. from socket.... drop it on the floor.\n");
                   }
-              } else ; // perror("[rmc_poll] got error:\n");
+              } else { } // perror("[rmc_poll] got error:\n");
           }
       }
   } // end active rmc loop
