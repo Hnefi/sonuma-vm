@@ -218,7 +218,6 @@ void rmc_recv(rmc_wq_t *wq,int snid,uint16_t sending_qp,uint16_t slot_idx)
 int get_send_slot(send_metadata_t* slot_data,size_t len)
 { 
     for(size_t i = 0; i < len; i++) {
-        //int old = slot_data[i].valid.exchange(0);
         int test_val = 1, new_val = 0;
         bool successful = slot_data[i].valid.compare_exchange_strong(test_val,new_val);
         if( successful ) { // got slot
