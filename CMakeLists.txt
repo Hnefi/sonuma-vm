@@ -72,7 +72,7 @@ target_compile_options(rmcd PUBLIC -D_GNU_SOURCE) # For sys/ipc.h
 target_include_directories(rmcd PUBLIC ${LIBSONUMA_DIR})
 
 # Sample code
-foreach(f ${SCODE_CPP})
-    add_executable(${f} ${SAMPLE_DIR}/${f}.cpp)
-    target_link_libraries(${f} sonuma rt)
-endforeach()
+#foreach(f ${SCODE_CPP})
+#add_executable(${f} ${SAMPLE_DIR}/${f}.cpp)
+#target_link_libraries(${f} sonuma rt)
+#endforeach()
