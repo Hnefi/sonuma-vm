@@ -103,7 +103,7 @@ void messager_thread(int thread_num, int target_nid, int snid, int node_cnt, int
 
         uint16_t sending_qp = 0, sending_nid = 0;
         uint16_t slot;
-        rmc_poll_cq_rpc(cq, (char**)&recv_slots,&handler,&sending_nid,&sending_qp,&slot); // handler decrements --op_cnt
+        rmc_poll_cq_rpc(cq, (char**)&recv_slots,&handler,&sending_nid,&sending_qp,&slot,NULL); // handler decrements --op_cnt
 
         // free slot on send-side
         rmc_recv(wq,sending_nid,sending_qp,slot);

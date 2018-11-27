@@ -171,7 +171,7 @@ int main(int argc, char **argv)
   uint16_t slot;
   while( op_cnt > 0 ) {
       printf("Loop op_count = %d\n",op_cnt);
-      rmc_poll_cq_rpc(cq, (char**)&recv_slots,&handler,&sending_nid,&sending_qp,&slot); // handler decrements --op_cnt
+      rmc_poll_cq_rpc(cq, (char**)&recv_slots,&handler,&sending_nid,&sending_qp,&slot,NULL); // handler decrements --op_cnt
       printf("Returned from poll_cq_rpc...\n");
 
       // free slot on send-side
