@@ -847,8 +847,9 @@ int main(int argc, char **argv)
                   }
                   //mark the entry as invalid, i.e. completed
                   curr->valid = 0;
-              } else 
+              } else {
                   DLogNoVar("Un-implemented op. in WQ entry. drop it on the floor.\n");
+              }
 
 #ifdef DEBUG_PERF_RMC
               clock_gettime(CLOCK_MONOTONIC, &end_time);
