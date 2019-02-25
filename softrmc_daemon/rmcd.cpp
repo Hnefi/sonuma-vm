@@ -768,7 +768,9 @@ int main(int argc, char **argv)
                           // 1) Take QP metadata and create RMC_Message class
                           // 2) Serialize/pack
                           // 3) sendall() to push all of the bytes out
-                          RMC_Message msg((uint16_t)rpc_id, (uint16_t)qp_num,(uint16_t)curr->slot_idx,curr->op,(local_buffer + (curr->buf_offset)),curr->length,'t');
+                          char qp_terminate_char = ( curr->send_qp_terminate == true ) ? 't' : 'f';
+                          uint16_t qp_num_conditional = ( curr->send_qp_terminate == true ) ? curr->send_qp_terminate : qp_num ;
+                          RMC_Message msg((uint16_t)rpc_id,qp_num_conditional,(uint16_t)curr->slot_idx,curr->op,(local_buffer + (curr->buf_offset)),curr->length,qp_terminate_char);
                           rpc_id++;
                           if( rpc_id == 0 ) rpc_id = 1; // 0 is a magic value used for rmc_recv()
                           uint32_t bytesToSend = msg.getRequiredLenBytes() + msg.getLenParamBytes();

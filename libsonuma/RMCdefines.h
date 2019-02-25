@@ -74,6 +74,7 @@ typedef struct wq_entry {
   uint64_t length;
   /* Msutherl: */
     uint16_t slot_idx;
+    bool send_qp_terminate;
 } wq_entry_t;
 
 typedef struct cq_entry { 
