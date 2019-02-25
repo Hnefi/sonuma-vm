@@ -49,25 +49,44 @@ void write_buf(char* buf, size_t len)
     }
 }
 
-uint32_t RMC_Message::total_header_bytes = 9; // FIXME: do this dynamically?
-
-RMC_Message::RMC_Message(uint16_t aQP, uint16_t aSlot, char aType,char* aPayloadPtr,uint32_t aPayLen) :
-    message_len(1+2+2+aPayLen), // does not include 4B for len itself
+RMC_Message::RMC_Message(uint16_t anRPC_ID,uint16_t aQP, uint16_t aSlot, char aType,char* aPayloadPtr,uint32_t aPayLen,char useQP_terminate) :
+    //message_len(1+1+2+2+2+aPayLen), // does not include 4B for len itself
     msg_type(aType),
+    terminate_to_senders_qp(useQP_terminate),
+    rpc_id(anRPC_ID),
     senders_qp(aQP),
     slot(aSlot),
     payload(aPayloadPtr,aPayloadPtr+aPayLen),
     payload_len(aPayLen)
-{ }
+{ 
+    this->total_header_bytes = RMC_Message::calcTotalHeaderBytes();
+}
 
-RMC_Message::RMC_Message(uint16_t aQP, uint16_t aSlot, char aType) :
-    message_len(1+2+2), // does not include 4B for len itself
+RMC_Message::RMC_Message(uint16_t anRPC_ID,uint16_t aQP, uint16_t aSlot, char aType) :
+    //message_len(1+1+2+2+2), // does not include 4B for len itself
     msg_type(aType),
+    terminate_to_senders_qp('f'),
+    rpc_id(anRPC_ID),
     senders_qp(aQP),
     slot(aSlot),
     payload(),
     payload_len(0)
-{ }
+{ 
+    this->total_header_bytes = RMC_Message::calcTotalHeaderBytes();
+}
+
+RMC_Message::RMC_Message(uint16_t aQP, uint16_t aSlot, char aType) :
+    //message_len(1+1+2+2+2), // does not include 4B for len itself
+    msg_type(aType),
+    terminate_to_senders_qp('f'),
+    rpc_id(0), /* This should never be read */
+    senders_qp(aQP),
+    slot(aSlot),
+    payload(),
+    payload_len(0)
+{ 
+    this->total_header_bytes = RMC_Message::calcTotalHeaderBytes();
+}
 
 uint32_t
 RMC_Message::getRequiredLenBytes() { return message_len; }
@@ -82,6 +101,13 @@ RMC_Message::pack(char* buf)
 
     memcpy(buf,&(this->msg_type),sizeof(char));
     buf += sizeof(char);
+
+    memcpy(buf,&(this->terminate_to_senders_qp),sizeof(char));
+    buf += sizeof(char);
+
+    uint16_t net_rpc_id = htons(this->rpc_id);
+    memcpy(buf,&net_rpc_id,sizeof(uint16_t));
+    buf += sizeof(uint16_t);
 
     uint16_t net_senders_qp = htons(this->senders_qp);
     memcpy(buf,&net_senders_qp,sizeof(uint16_t));
@@ -105,8 +131,8 @@ RMC_Message unpackToRMC_Message(char* buf)
 {
     char* aNetworkBuffer = buf;
     uint32_t message_len;
-    uint16_t senders_qp, slot;
-    char mType;
+    uint16_t senders_qp, slot, rpc_id;
+    char mType, terminate_to_senders_qp;
 
     uint32_t* mlen_tmptr = (uint32_t*) aNetworkBuffer;
     message_len = ntohl(*mlen_tmptr);
@@ -115,6 +141,14 @@ RMC_Message unpackToRMC_Message(char* buf)
     char* mtype_tmptr = aNetworkBuffer;
     mType = *mtype_tmptr;
     aNetworkBuffer += sizeof(char);
+
+    char* terminate_to_senders_qp_tmptr = aNetworkBuffer;
+    terminate_to_senders_qp = *terminate_to_senders_qp_tmptr;
+    aNetworkBuffer += sizeof(char);
+
+    uint16_t* rpcid_tmptr = (uint16_t*) aNetworkBuffer;
+    rpc_id = ntohs(*rpcid_tmptr);
+    aNetworkBuffer += sizeof(uint16_t);
 
     uint16_t* senderQP_tmptr = (uint16_t*) aNetworkBuffer;
     senders_qp = ntohs(*senderQP_tmptr);
@@ -125,13 +159,17 @@ RMC_Message unpackToRMC_Message(char* buf)
 #ifdef DEBUG_RMC
     printf(" Demultiplexed: message_len %d\n "
            " : mtype %c\n "
+           " : terminate_to_senders_qp %c\n "
+           " : rpc_id %d\n "
            " : senders_qp %d\n "
            " : slot %d\n ",
-           message_len, 
+           message_len,
+           terminate_to_senders_qp,
+           rpc_id,
            mType,
            senders_qp,
            slot);
 #endif
-    return mType == 's' ? RMC_Message( senders_qp,slot,mType,(buf + RMC_Message::total_header_bytes), (message_len - RMC_Message::total_header_bytes) ) :
-        RMC_Message( senders_qp,slot,mType ) ;
+    return mType == 's' ? RMC_Message( rpc_id, senders_qp,slot,mType,(buf + RMC_Message::calcTotalHeaderBytes() ), ( message_len - RMC_Message::calcTotalHeaderBytes() ), terminate_to_senders_qp ) :
+        RMC_Message( rpc_id,senders_qp,slot,mType ) ;
 }

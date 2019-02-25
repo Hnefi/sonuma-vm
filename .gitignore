@@ -8,6 +8,7 @@ bin/
 build/
 CMakeFiles/
 cmake_install.cmake
+.cache.mk
 Makefile
 sample_code/bench_async
 sample_code/bench_server

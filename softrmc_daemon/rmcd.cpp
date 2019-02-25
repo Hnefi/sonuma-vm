@@ -68,6 +68,9 @@ static char** recv_slots;
 static char** sslots;
 static char** avail_slots;
 
+// message id for all send() messages.
+static uint16_t rpc_id = 1;
+
 // Implementation to return str rep. of WQ entry
 // FIXME: assumes buffer has enough space (please buffer-overflow attack this!)
 int stringify_wq_entry(wq_entry_t* entry,char* buf)
@@ -669,8 +672,10 @@ int main(int argc, char **argv)
           nodetmp[tmp].valid = 1;
           nodetmp[tmp].sslot_index = tmp;
       }
+      // default_rpc structure
+      RMC_Message default_size_object(0,0,'s');
       // make a tmp buffer to hold RPC arguments
-      tmp_copies[i] = (char*)calloc(MAX_RPC_BYTES + RMC_Message::getTotalHeaderBytes(),sizeof(char));
+      tmp_copies[i] = (char*)calloc(MAX_RPC_BYTES + default_size_object.getTotalHeaderBytes(),sizeof(char));
   }
 
  //create the global address space
@@ -763,7 +768,9 @@ int main(int argc, char **argv)
                           // 1) Take QP metadata and create RMC_Message class
                           // 2) Serialize/pack
                           // 3) sendall() to push all of the bytes out
-                          RMC_Message msg((uint16_t)qp_num,(uint16_t)curr->slot_idx,curr->op,(local_buffer + (curr->buf_offset)),curr->length);
+                          RMC_Message msg((uint16_t)rpc_id, (uint16_t)qp_num,(uint16_t)curr->slot_idx,curr->op,(local_buffer + (curr->buf_offset)),curr->length,'t');
+                          rpc_id++;
+                          if( rpc_id == 0 ) rpc_id = 1; // 0 is a magic value used for rmc_recv()
                           uint32_t bytesToSend = msg.getRequiredLenBytes() + msg.getLenParamBytes();
                           uint32_t copy = bytesToSend;
                           char* packedBuffer = new char[bytesToSend];
@@ -783,7 +790,6 @@ int main(int argc, char **argv)
                       }
                   case 'g':
                       {
-                          // send rmc->rmc rpc
                           int receiver = curr->nid;
                           // 1) Take QP metadata and create RMC_Message class
                           // 2) Serialize/pack
@@ -923,15 +929,18 @@ int main(int argc, char **argv)
                               // and does not represent modelled zero-copy hardware)
                               char* recv_slot_ptr = recv_slots[i]  // base
                                   + (recv_slot * (MAX_RPC_BYTES));
-                              size_t arg_len = msgLengthReceived - RMC_Message::getMessageHeaderBytes();
+                              size_t arg_len = msgLengthReceived - msgReceived.getMessageHeaderBytes();
                               memcpy((void*) recv_slot_ptr,msgReceived.payload.data(),arg_len);
 #ifdef PRINT_BUFS
                               DLog("[rmc_poll] After memcpy-ing unpacked data, message len: %d", msgReceived.getRequiredLenBytes() );
                               DumpHex( recv_slot_ptr , msgReceived.getRequiredLenBytes() );
 #endif
-                              uint8_t qp_to_terminate = get_server_qp_rrobin();
-                              cq = cqs[qp_to_terminate];
-                              while ( !cq->connected ) {
+                              uint8_t qp_to_terminate;
+                              if( msgReceived.terminate_to_senders_qp == 't' ) {
+                                  qp_to_terminate = sending_qp;
+                                  cq = cqs[qp_to_terminate];
+                                  assert( cq->connected );
+                              } else { // rrobin
                                   qp_to_terminate = get_server_qp_rrobin();
                                   cq = cqs[qp_to_terminate];
                               }
@@ -961,6 +970,9 @@ int main(int argc, char **argv)
                           }
                       case 'g':
                           {
+#ifdef DEBUG_RMC
+                              assert( msgReceived.rpc_id == 0); // for recv/replenish
+#endif
                               uint16_t sending_qp = msgReceived.senders_qp;
                               uint8_t slot_to_reuse = msgReceived.slot;
                               DLog("Received rpc RECV (\'g\') at rmc #%d. Send-side QP info is:\n"
