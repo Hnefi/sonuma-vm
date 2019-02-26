@@ -672,10 +672,8 @@ int main(int argc, char **argv)
           nodetmp[tmp].valid = 1;
           nodetmp[tmp].sslot_index = tmp;
       }
-      // default_rpc structure
-      RMC_Message default_size_object(0,0,'s');
       // make a tmp buffer to hold RPC arguments
-      tmp_copies[i] = (char*)calloc(MAX_RPC_BYTES + default_size_object.getTotalHeaderBytes(),sizeof(char));
+      tmp_copies[i] = (char*)calloc(MAX_RPC_BYTES + RMC_Message::calcTotalHeaderBytes(),sizeof(char));
   }
 
  //create the global address space
@@ -769,7 +767,7 @@ int main(int argc, char **argv)
                           // 2) Serialize/pack
                           // 3) sendall() to push all of the bytes out
                           char qp_terminate_char = ( curr->send_qp_terminate == true ) ? 't' : 'f';
-                          uint16_t qp_num_conditional = ( curr->send_qp_terminate == true ) ? curr->send_qp_terminate : qp_num ;
+                          uint16_t qp_num_conditional = ( curr->send_qp_terminate == true ) ? curr->qp_num_at_receiver : qp_num ;
                           RMC_Message msg((uint16_t)rpc_id,qp_num_conditional,(uint16_t)curr->slot_idx,curr->op,(local_buffer + (curr->buf_offset)),curr->length,qp_terminate_char);
                           rpc_id++;
                           if( rpc_id == 0 ) rpc_id = 1; // 0 is a magic value used for rmc_recv()

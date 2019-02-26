@@ -180,6 +180,7 @@ void rmc_send(rmc_wq_t *wq, char *lbuff_ptr, int lbuff_offset, size_t size, int 
     wq->q[wq_head].SR = wq->SR;
     // Msutherl:
     wq->q[wq_head].slot_idx = slot_idx;
+    wq->q[wq_head].qp_num_at_receiver = sending_qp;
     wq->q[wq_head].send_qp_terminate = send_qp_terminate;
 
     wq->head =  wq->head + 1;

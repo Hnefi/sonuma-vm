@@ -37,6 +37,7 @@
 #define H_RMC_DEFINES
 
 #define MAX_NUM_WQ 64
+#define MAX_NUM_SRQ_SLOTS 256 // Msutherl: probably needs to be bigger
 
 #define RPC_DATA_PAYLOAD 4096
 #define MAX_RPC_BYTES (RPC_DATA_PAYLOAD)// + HEADER_DATA_BYTES)
@@ -74,6 +75,7 @@ typedef struct wq_entry {
   uint64_t length;
   /* Msutherl: */
     uint16_t slot_idx;
+    uint16_t qp_num_at_receiver;
     bool send_qp_terminate;
 } wq_entry_t;
 
@@ -112,6 +114,17 @@ typedef struct sslot {
     uint16_t sending_qp;
     uint16_t wq_entry_idx;
 } send_slot_t;
+
+/* Msutherl */
+typedef struct rpc_srq_entry {
+    uint64_t recv_slot_idx;
+    // TODO: add things
+} rpc_srq_entry_t;
+
+/* Msutherl */
+typedef struct rpc_srq {
+    rpc_srq_entry_t q[MAX_NUM_SRQ_SLOTS];
+} rpc_srq_t; 
 
 #ifdef __cplusplus
 #include <atomic> // Msutherl

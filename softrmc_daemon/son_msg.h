@@ -56,7 +56,6 @@ class RMC_Message {
 
         // THINGS NOT SENT ON WIRE // 
         uint32_t payload_len; 
-        uint32_t total_header_bytes;
 
         RMC_Message(uint16_t anRPC_ID, uint16_t aQP, uint16_t aSlot, char aType, char* aPayloadPtr,uint32_t payloadLen, char useQP_to_terminate);
         RMC_Message(uint16_t anRPC_ID,uint16_t aQP, uint16_t aSlot, char aType);
@@ -74,8 +73,7 @@ class RMC_Message {
             return hbytes;
         }
 
-        uint32_t getTotalHeaderBytes() { return total_header_bytes; }
-        uint32_t getMessageHeaderBytes() { return total_header_bytes-getLenParamBytes();}
+        uint32_t getMessageHeaderBytes() { return RMC_Message::calcTotalHeaderBytes() -getLenParamBytes(); }
         static uint32_t getLenParamBytes() { return sizeof(uint32_t); }
 };
 

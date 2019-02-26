@@ -67,7 +67,7 @@
 typedef struct rpcArgument {
     uint16_t sending_nid;
     cq_entry_t* head;
-    void* owner;
+    void* pointerToAppData; // cast me
 } rpcArg_t;
 
 typedef void (async_handler)(uint8_t tid, wq_entry_t *head, void *owner);
@@ -363,7 +363,7 @@ static inline int rmc_drain_cq(rmc_wq_t *wq, rmc_cq_t *cq, async_handler *handle
   return 0;
 }
 
-static inline void rmc_poll_cq_rpc(rmc_cq_t* cq, char** recv_slots, receiveCallback* theRPC, uint16_t* sending_nid, uint16_t* sending_qp,uint16_t* slot_idx,void* cbufPtrHack)
+static inline void rmc_poll_cq_rpc(rmc_cq_t* cq, char** recv_slots, receiveCallback* theRPC, uint16_t* sending_nid, uint16_t* sending_qp,uint16_t* slot_idx,void* argPointerHack)
 {
     uint8_t cq_tail = cq->tail;
 
@@ -382,7 +382,7 @@ static inline void rmc_poll_cq_rpc(rmc_cq_t* cq, char** recv_slots, receiveCallb
     rpcArg_t args;
     args.sending_nid = *sending_nid;
     args.head = &(cq->q[cq_tail]);
-    args.owner = cbufPtrHack;
+    args.pointerToAppData = argPointerHack;
 #ifdef PRINT_BUFS
     DLog("About to call back to the RPC handler itself. Sending NID: %d, slot_idx: %d, length: %d",*sending_nid, *slot_idx, cq->q[cq_tail].length);
     DumpHex( (node_recv_slot + (MAX_RPC_BYTES*(*slot_idx))), cq->q[cq_tail].length );
@@ -414,7 +414,7 @@ static inline void rmc_test_cq_rpc(rmc_cq_t* cq, char** recv_slots, receiveCallb
       rpcArg_t args;
       args.sending_nid = *sending_nid;
       args.head = &(cq->q[cq_tail]);
-      args.owner = NULL;
+      args.pointerToAppData = NULL;
       theRPC((node_recv_slot + (MAX_RPC_BYTES*(*slot_idx))), &args);
 
       cq->tail = cq->tail + 1;
