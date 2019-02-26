@@ -941,8 +941,10 @@ int main(int argc, char **argv)
                                   cq = cqs[qp_to_terminate];
                                   assert( cq->connected );
                               } else { // rrobin
-                                  qp_to_terminate = get_server_qp_rrobin();
-                                  cq = cqs[qp_to_terminate];
+                                  do { 
+                                      qp_to_terminate = get_server_qp_rrobin();
+                                      cq = cqs[qp_to_terminate];
+                                  } while( !cq->connected )
                               }
                               uint8_t* local_cq_head = &(local_CQ_heads[qp_to_terminate]);
                               uint8_t* local_cq_SR = &(local_CQ_SRs[qp_to_terminate]);

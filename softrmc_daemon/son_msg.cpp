@@ -158,6 +158,7 @@ RMC_Message unpackToRMC_Message(char* buf)
            " : senders_qp %d\n "
            " : slot %d\n ",
            message_len,
+           mType,
            terminate_to_senders_qp,
            rpc_id,
            mType,
