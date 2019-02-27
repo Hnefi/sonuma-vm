@@ -72,7 +72,7 @@ static char** avail_slots;
 
 // RPC srq structure, has space for MAX_NUM_SRQ_SLOTS rpcs
 rpc_srq_t rpc_srq;
-static unsigned* rpcs_per_core;
+static int* rpcs_per_core;
 unsigned rpc_cores;
 
 // message id for all send() messages.
@@ -98,7 +98,7 @@ int stringify_wq_entry(wq_entry_t* entry,char* buf)
 }
 
 static int
-get_avail_core(unsigned* rpc_occupancy_array) {
+get_avail_core(int* rpc_occupancy_array) {
     for(unsigned i = 0; i < rpc_cores; i++) {
         if( rpc_occupancy_array[i] <= REQ_THRESHOLD ) {
             return i;
@@ -108,7 +108,7 @@ get_avail_core(unsigned* rpc_occupancy_array) {
 }
 
 static void
-decrement_core_occupancy(unsigned* rpc_occupancy_array, unsigned core_id) {
+decrement_core_occupancy(int* rpc_occupancy_array, unsigned core_id) {
     rpc_occupancy_array[core_id]--;
 #ifdef DEBUG_RMC
     assert( rpc_occupancy_array[core_id] >= 0 );
@@ -116,7 +116,7 @@ decrement_core_occupancy(unsigned* rpc_occupancy_array, unsigned core_id) {
 }
 
 static void
-increment_core_occupancy(unsigned* rpc_occupancy_array, unsigned core_id) {
+increment_core_occupancy(int* rpc_occupancy_array, unsigned core_id) {
     rpc_occupancy_array[core_id]++;
 #ifdef DEBUG_RMC
     assert( rpc_occupancy_array[core_id] <= REQ_THRESHOLD );
@@ -758,10 +758,10 @@ int main(int argc, char **argv)
   }
 
   // assume num qps == num cores, to create the rpcs_per_core
-  rpcs_per_core = (unsigned*) malloc(num_qps*sizeof(unsigned));
+  rpcs_per_core = (int*) malloc(num_qps*sizeof(int));
   rpc_cores = num_qps;
   for(size_t i = 0; i < num_qps; i++) {
-      *(rpcs_per_core+i) = 0;
+      rpcs_per_core[i] = 0;
   }
 
  //create the global address space
@@ -1079,6 +1079,8 @@ int main(int argc, char **argv)
                                           DLog("SRQ is empty.\n");
                                       } else {
                                           // create CQ entry to send rpc to the core.
+                                          cq = cqs[dispatch_core_id];
+                                          assert( cq->connected );
                                           uint8_t* local_cq_head = &(local_CQ_heads[dispatch_core_id]);
                                           uint8_t* local_cq_SR = &(local_CQ_SRs[dispatch_core_id]);
                                           cq->q[*local_cq_head].SR = *local_cq_SR;
@@ -1086,7 +1088,7 @@ int main(int argc, char **argv)
                                           cq->q[*local_cq_head].tid = rpc_to_dispatch.sending_qp;
                                           cq->q[*local_cq_head].slot_idx = rpc_to_dispatch.slot_idx;
                                           cq->q[*local_cq_head].length = rpc_to_dispatch.length;
-                                          DLog("@ node %d, DISPATCHING TO (:\n"
+                                          DLog("@ node %d, DISPATCHING TO:\n"
                                                   "\t{ qp_to_terminate : %d },\n"
                                                   "\t{ sending_nid : %d },\n"
                                                   "\t{ sender's QP : %d },\n"
