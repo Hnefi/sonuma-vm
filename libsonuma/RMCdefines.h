@@ -77,16 +77,17 @@ typedef struct wq_entry {
     uint16_t slot_idx;
     uint16_t qp_num_at_receiver;
     bool send_qp_terminate;
+    bool dispatch_on_recv;
 } wq_entry_t;
 
 typedef struct cq_entry { 
   volatile uint8_t SR;
   volatile uint8_t tid;
   /* Msutherl: */
-      uint16_t sending_nid;
-      uint16_t sending_qp;
-      uint16_t slot_idx;
-      uint64_t length;
+  uint16_t sending_nid;
+  uint16_t sending_qp;
+  uint64_t slot_idx;
+  uint64_t length;
 } cq_entry_t;
 
 typedef struct rmc_wq {
@@ -117,13 +118,20 @@ typedef struct sslot {
 
 /* Msutherl */
 typedef struct rpc_srq_entry {
-    uint64_t recv_slot_idx;
-    // TODO: add things
+    // all metadata used for making the CQ entry later upon dispatch
+    volatile uint8_t tid;
+    uint16_t sending_nid;
+    uint16_t sending_qp;
+    uint64_t slot_idx;
+    uint64_t length;
 } rpc_srq_entry_t;
 
 /* Msutherl */
 typedef struct rpc_srq {
     rpc_srq_entry_t q[MAX_NUM_SRQ_SLOTS];
+    // head-tail indices
+    uint64_t head, tail;
+    bool full;
 } rpc_srq_t; 
 
 #ifdef __cplusplus

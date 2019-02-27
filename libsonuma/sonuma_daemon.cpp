@@ -191,7 +191,7 @@ void rmc_send(rmc_wq_t *wq, char *lbuff_ptr, int lbuff_offset, size_t size, int 
     }
 }
 
-void rmc_recv(rmc_wq_t *wq,int snid,uint16_t sending_qp,uint16_t slot_idx)
+void rmc_recv(rmc_wq_t *wq,int snid,uint16_t sending_qp,uint16_t slot_idx,bool dispatch)
 {
     // create WQ entry, response for arguments given to CQ
     uint8_t wq_head = wq->head;
@@ -208,6 +208,7 @@ void rmc_recv(rmc_wq_t *wq,int snid,uint16_t sending_qp,uint16_t slot_idx)
     wq->q[wq_head].SR = wq->SR;
     wq->q[wq_head].slot_idx = slot_idx;
         // signal RMC to reuse this slot
+    wq->q[wq_head].dispatch_on_recv = dispatch;
 
     wq->head =  wq->head + 1;
     //check if WQ reached its end

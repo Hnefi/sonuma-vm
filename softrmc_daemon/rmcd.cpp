@@ -68,6 +68,9 @@ static char** recv_slots;
 static char** sslots;
 static char** avail_slots;
 
+// RPC srq structure, has space for MAX_NUM_SRQ_SLOTS rpcs
+rpc_srq_t rpc_srq;
+
 // message id for all send() messages.
 static uint16_t rpc_id = 1;
 
@@ -90,7 +93,6 @@ int stringify_wq_entry(wq_entry_t* entry,char* buf)
             entry->nid, entry->cid, entry->slot_idx, entry->offset, entry->length);
 }
 
-
 int count_valid_cq_entries(volatile rmc_cq_t* cq, int8_t local_cq_head)
 {
     int tailIdx = cq->tail;
@@ -106,6 +108,54 @@ int count_valid_cq_entries(volatile rmc_cq_t* cq, int8_t local_cq_head)
     }
     assert( retCount <= MAX_NUM_WQ );
     return retCount;
+}
+
+bool srq_empty(rpc_srq_t* srq)
+{
+    assert(srq);
+    return(!srq->full && (srq->head == srq->tail));
+}
+
+bool srq_full(rpc_srq_t* srq) 
+{ 
+    assert(srq);
+    return srq->full;
+}
+
+void advance_srq_head(rpc_srq_t* srq)
+{
+    assert(srq);
+    srq->head = (srq->head + 1) % MAX_NUM_SRQ_SLOTS;
+    srq->full = (srq->head == srq->tail);
+}
+
+void advance_srq_tail(rpc_srq_t* srq)
+{
+    assert(srq);
+    srq->tail = (srq->tail + 1) % MAX_NUM_SRQ_SLOTS;
+    srq->full = false;
+}
+
+bool enqueue_in_srq(rpc_srq_t* srq, rpc_srq_entry_t newEntry)
+{
+    assert(srq);
+    if( !srq_full(srq) ) {
+        srq->q[srq->head] = newEntry;
+        advance_srq_head(srq);
+        return true;
+    }
+    return false;
+}
+
+bool dequeue_from_srq(rpc_srq_t* srq,rpc_srq_entry_t* returned_entry )
+{
+    assert(srq);
+    if(!srq_empty(srq)) {
+        *returned_entry = srq->q[srq->tail];
+        advance_srq_tail(srq);
+        return true;
+    } 
+    return false;
 }
 
 // Msutherl: returns qp number for RMC on server-side to terminate msg. into
@@ -806,6 +856,46 @@ int main(int argc, char **argv)
                               printf("Only sent %d of %d bytes.... Do something about it!!!!\n",bytesToSend,copy);
                           } else {}
                           delete packedBuffer;
+
+                          /* Flow control completed, do an rpc dispatch! */
+                          if( curr->dispatch_on_recv ) {
+                              rpc_srq_entry_t rpc_to_dispatch;
+                              bool success = dequeue_from_srq(&rpc_srq,&rpc_to_dispatch);
+                              if( !success ) {
+                                  DLog("SRQ is empty.\n");
+                              } else {
+                                  // create CQ entry to send rpc to the core.
+                                  uint8_t* local_cq_head = &(local_CQ_heads[qp_num]);
+                                  uint8_t* local_cq_SR = &(local_CQ_SRs[qp_num]);
+                                  cq->q[*local_cq_head].SR = *local_cq_SR;
+                                  cq->q[*local_cq_head].sending_nid = rpc_to_dispatch.sending_nid;
+                                  cq->q[*local_cq_head].tid = rpc_to_dispatch.sending_qp;
+                                  cq->q[*local_cq_head].slot_idx = rpc_to_dispatch.slot_idx;
+                                  cq->q[*local_cq_head].length = rpc_to_dispatch.length;
+                                  DLog("RMC doing RECEIVE - W. DISPATCH (\'g+\') at rmc #%d. Receive-side QP info is:\n"
+                                          "\t{ qp_of_receive : %d },\n"
+                                          "\t{ receive_slot_idx : %d },\n"
+                                          this_nid, 
+                                          qp_num,
+                                          curr->slot_idx );
+                                  DLog("@ node %d, DISPATCHING TO (:\n"
+                                          "\t{ qp_to_terminate : %d },\n"
+                                          "\t{ sending_nid : %d },\n"
+                                          "\t{ sender's QP : %d },\n"
+                                          "\t{ recv_slot : %d },\n",
+                                          this_nid, 
+                                          qp_num,
+                                          rpc_to_dispatch.sending_nid,
+                                          rpc_to_dispatch.sending_qp,
+                                          rpc_to_dispatch.recv_slot );
+                                  *local_cq_head += 1;
+                                  if(*local_cq_head >= MAX_NUM_WQ) {
+                                      *local_cq_head = 0;
+                                      *local_cq_SR ^= 1;
+                                  }
+                                  break;
+                              }
+                          }
                           break;
                       }
                   case 'a': ;
@@ -881,7 +971,6 @@ int main(int argc, char **argv)
       }// end loop over qps
 
       // Msutherl: check all sockets (sinfos) for outstanding rpc
-      //uint32_t max_single_msg_size = MAX_RPC_BYTES + RMC_Message::getTotalHeaderBytes();
       for(i = 0; i < node_cnt; i++) {
           if( i != this_nid ) {
               char* rbuf = tmp_copies[i];
@@ -920,7 +1009,7 @@ int main(int argc, char **argv)
                   }
 #endif
                   switch( msgReceived.msg_type ) {
-                    // check whether it's an rpc send, or recv to already sent rpc
+                      // check whether it's an rpc send, or recv to already sent rpc
                       case 's':
                           {
                               uint16_t recv_slot = msgReceived.slot;
@@ -937,38 +1026,47 @@ int main(int argc, char **argv)
 #endif
                               uint8_t qp_to_terminate;
                               if( msgReceived.terminate_to_senders_qp == 't' ) {
+                                  // this is an rpc response, goes to a specific QP
                                   qp_to_terminate = sending_qp;
                                   cq = cqs[qp_to_terminate];
                                   assert( cq->connected );
-                              } else { // rrobin
-                                  do { 
-                                      qp_to_terminate = get_server_qp_rrobin();
-                                      cq = cqs[qp_to_terminate];
-                                  } while( !cq->connected );
+
+                                  uint8_t* local_cq_head = &(local_CQ_heads[qp_to_terminate]);
+                                  uint8_t* local_cq_SR = &(local_CQ_SRs[qp_to_terminate]);
+                                  cq->q[*local_cq_head].SR = *local_cq_SR;
+                                  cq->q[*local_cq_head].sending_nid = i;
+                                  cq->q[*local_cq_head].tid = sending_qp;
+                                  cq->q[*local_cq_head].slot_idx = recv_slot;
+                                  cq->q[*local_cq_head].length = arg_len ;
+                                  DLog("Received rpc SEND RESPONSE (\'s\') at rmc #%d. Receive-side QP info is:\n"
+                                          "\t{ qp_to_terminate : %d },\n"
+                                          "\t{ local_cq_head : %d },\n"
+                                          "\t{ sender's QP : %d },\n"
+                                          "\t{ recv_slot : %d },\n",
+                                          this_nid, 
+                                          qp_to_terminate,
+                                          *local_cq_head,
+                                          sending_qp,
+                                          recv_slot );
+                                  *local_cq_head += 1;
+                                  if(*local_cq_head >= MAX_NUM_WQ) {
+                                      *local_cq_head = 0;
+                                      *local_cq_SR ^= 1;
+                                  }
+                                  break;
+                              } else {
+                                  // this is an rpc request, goes to the srq
+                                  rpc_srq_entry_t newEntry;
+                                  newEntry.sending_nid = i;
+                                  newEntry.tid = sending_qp;
+                                  newEntry.slot_idx = recv_slot;
+                                  newEntry.length = arg_len;
+                                  bool success = enqueue_in_srq(&rpc_srq,newEntry);
+                                  if( !success ) {
+                                      DLog("FAILED rmc_send to SRQ, queue was full. Probably unstable.\n");
+                                  }
+                                  break;
                               }
-                              uint8_t* local_cq_head = &(local_CQ_heads[qp_to_terminate]);
-                              uint8_t* local_cq_SR = &(local_CQ_SRs[qp_to_terminate]);
-                              cq->q[*local_cq_head].SR = *local_cq_SR;
-                              cq->q[*local_cq_head].sending_nid = i;
-                              cq->q[*local_cq_head].tid = sending_qp;
-                              cq->q[*local_cq_head].slot_idx = recv_slot;
-                              cq->q[*local_cq_head].length = arg_len ;
-                              DLog("Received rpc SEND (\'s\') at rmc #%d. Receive-side QP info is:\n"
-                                      "\t{ qp_to_terminate : %d },\n"
-                                      "\t{ local_cq_head : %d },\n"
-                                      "\t{ sender's QP : %d },\n"
-                                      "\t{ recv_slot : %d },\n",
-                                      this_nid, 
-                                      qp_to_terminate,
-                                      *local_cq_head,
-                                      sending_qp,
-                                      recv_slot );
-                              *local_cq_head += 1;
-                              if(*local_cq_head >= MAX_NUM_WQ) {
-                                  *local_cq_head = 0;
-                                  *local_cq_SR ^= 1;
-                              }
-                              break;
                           }
                       case 'g':
                           {
