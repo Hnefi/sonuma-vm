@@ -874,7 +874,7 @@ int main(int argc, char **argv)
                                   cq->q[*local_cq_head].length = rpc_to_dispatch.length;
                                   DLog("RMC doing RECEIVE - W. DISPATCH (\'g+\') at rmc #%d. Receive-side QP info is:\n"
                                           "\t{ qp_of_receive : %d },\n"
-                                          "\t{ receive_slot_idx : %d },\n"
+                                          "\t{ receive_slot_idx : %d },\n",
                                           this_nid, 
                                           qp_num,
                                           curr->slot_idx );
@@ -887,7 +887,7 @@ int main(int argc, char **argv)
                                           qp_num,
                                           rpc_to_dispatch.sending_nid,
                                           rpc_to_dispatch.sending_qp,
-                                          rpc_to_dispatch.recv_slot );
+                                          rpc_to_dispatch.slot_idx );
                                   *local_cq_head += 1;
                                   if(*local_cq_head >= MAX_NUM_WQ) {
                                       *local_cq_head = 0;
