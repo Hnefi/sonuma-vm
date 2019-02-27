@@ -50,6 +50,8 @@
 #include "son_msg.h"
 #include "sonuma.h"
 
+#define REQ_THRESHOLD 2
+
 using namespace std;
 
 //server information
@@ -70,6 +72,8 @@ static char** avail_slots;
 
 // RPC srq structure, has space for MAX_NUM_SRQ_SLOTS rpcs
 rpc_srq_t rpc_srq;
+static unsigned* rpcs_per_core;
+unsigned rpc_cores;
 
 // message id for all send() messages.
 static uint16_t rpc_id = 1;
@@ -92,6 +96,33 @@ int stringify_wq_entry(wq_entry_t* entry,char* buf)
             , entry->op, entry->SR, entry->valid, entry->buf_addr, entry->buf_offset,
             entry->nid, entry->cid, entry->slot_idx, entry->offset, entry->length);
 }
+
+static int
+get_avail_core(unsigned* rpc_occupancy_array) {
+    for(unsigned i = 0; i < rpc_cores; i++) {
+        if( rpc_occupancy_array[i] <= REQ_THRESHOLD ) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+static void
+decrement_core_occupancy(unsigned* rpc_occupancy_array, unsigned core_id) {
+    rpc_occupancy_array[core_id]--;
+#ifdef DEBUG_RMC
+    assert( rpc_occupancy_array[core_id] >= 0 );
+#endif
+}
+
+static void
+increment_core_occupancy(unsigned* rpc_occupancy_array, unsigned core_id) {
+    rpc_occupancy_array[core_id]++;
+#ifdef DEBUG_RMC
+    assert( rpc_occupancy_array[core_id] <= REQ_THRESHOLD );
+#endif
+}
+
 
 int count_valid_cq_entries(volatile rmc_cq_t* cq, int8_t local_cq_head)
 {
@@ -726,6 +757,13 @@ int main(int argc, char **argv)
       tmp_copies[i] = (char*)calloc(MAX_RPC_BYTES + RMC_Message::calcTotalHeaderBytes(),sizeof(char));
   }
 
+  // assume num qps == num cores, to create the rpcs_per_core
+  rpcs_per_core = (unsigned*) malloc(num_qps*sizeof(unsigned));
+  rpc_cores = num_qps;
+  for(size_t i = 0; i < num_qps; i++) {
+      *(rpcs_per_core+i) = 0;
+  }
+
  //create the global address space
   if(ctx_alloc_grant_map(&local_mem_region, MAX_REGION_PAGES) == -1) {
     printf("[main] context not allocated\n");
@@ -857,44 +895,9 @@ int main(int argc, char **argv)
                           } else {}
                           delete packedBuffer;
 
-                          /* Flow control completed, do an rpc dispatch! */
+                          /* Flow control completed, update the core occupancy table */
                           if( curr->dispatch_on_recv ) {
-                              rpc_srq_entry_t rpc_to_dispatch;
-                              bool success = dequeue_from_srq(&rpc_srq,&rpc_to_dispatch);
-                              if( !success ) {
-                                  DLog("SRQ is empty.\n");
-                              } else {
-                                  // create CQ entry to send rpc to the core.
-                                  uint8_t* local_cq_head = &(local_CQ_heads[qp_num]);
-                                  uint8_t* local_cq_SR = &(local_CQ_SRs[qp_num]);
-                                  cq->q[*local_cq_head].SR = *local_cq_SR;
-                                  cq->q[*local_cq_head].sending_nid = rpc_to_dispatch.sending_nid;
-                                  cq->q[*local_cq_head].tid = rpc_to_dispatch.sending_qp;
-                                  cq->q[*local_cq_head].slot_idx = rpc_to_dispatch.slot_idx;
-                                  cq->q[*local_cq_head].length = rpc_to_dispatch.length;
-                                  DLog("RMC doing RECEIVE - W. DISPATCH (\'g+\') at rmc #%d. Receive-side QP info is:\n"
-                                          "\t{ qp_of_receive : %d },\n"
-                                          "\t{ receive_slot_idx : %d },\n",
-                                          this_nid, 
-                                          qp_num,
-                                          curr->slot_idx );
-                                  DLog("@ node %d, DISPATCHING TO (:\n"
-                                          "\t{ qp_to_terminate : %d },\n"
-                                          "\t{ sending_nid : %d },\n"
-                                          "\t{ sender's QP : %d },\n"
-                                          "\t{ recv_slot : %d },\n",
-                                          this_nid, 
-                                          qp_num,
-                                          rpc_to_dispatch.sending_nid,
-                                          rpc_to_dispatch.sending_qp,
-                                          rpc_to_dispatch.slot_idx );
-                                  *local_cq_head += 1;
-                                  if(*local_cq_head >= MAX_NUM_WQ) {
-                                      *local_cq_head = 0;
-                                      *local_cq_SR ^= 1;
-                                  }
-                                  break;
-                              }
+                              decrement_core_occupancy(rpcs_per_core,qp_num);
                           }
                           break;
                       }
@@ -1065,9 +1068,47 @@ int main(int argc, char **argv)
                                   if( !success ) {
                                       DLog("FAILED rmc_send to SRQ, queue was full. Probably unstable.\n");
                                   }
+
+                                  // determine if need to make a dispatch decision
+                                  int dispatch_core_id = get_avail_core(rpcs_per_core);
+                                  if( dispatch_core_id >= 0 ) {
+                                      // dispatch head of srq
+                                      rpc_srq_entry_t rpc_to_dispatch;
+                                      bool success = dequeue_from_srq(&rpc_srq,&rpc_to_dispatch);
+                                      if( !success ) {
+                                          DLog("SRQ is empty.\n");
+                                      } else {
+                                          // create CQ entry to send rpc to the core.
+                                          uint8_t* local_cq_head = &(local_CQ_heads[dispatch_core_id]);
+                                          uint8_t* local_cq_SR = &(local_CQ_SRs[dispatch_core_id]);
+                                          cq->q[*local_cq_head].SR = *local_cq_SR;
+                                          cq->q[*local_cq_head].sending_nid = rpc_to_dispatch.sending_nid;
+                                          cq->q[*local_cq_head].tid = rpc_to_dispatch.sending_qp;
+                                          cq->q[*local_cq_head].slot_idx = rpc_to_dispatch.slot_idx;
+                                          cq->q[*local_cq_head].length = rpc_to_dispatch.length;
+                                          DLog("@ node %d, DISPATCHING TO (:\n"
+                                                  "\t{ qp_to_terminate : %d },\n"
+                                                  "\t{ sending_nid : %d },\n"
+                                                  "\t{ sender's QP : %d },\n"
+                                                  "\t{ recv_slot : %d },\n",
+                                                  this_nid, 
+                                                  dispatch_core_id,
+                                                  rpc_to_dispatch.sending_nid,
+                                                  rpc_to_dispatch.sending_qp,
+                                                  rpc_to_dispatch.slot_idx );
+                                          *local_cq_head += 1;
+                                          if(*local_cq_head >= MAX_NUM_WQ) {
+                                              *local_cq_head = 0;
+                                              *local_cq_SR ^= 1;
+                                          }
+                                          increment_core_occupancy(rpcs_per_core,dispatch_core_id);
+                                      } // end successful srq dequeue 
+                                  } else {
+                                      DLog("@ node %d, all cores OCCUPIED....\n",this_nid);
+                                  }
                                   break;
-                              }
-                          }
+                              } // end available core srq
+                          } // end dispatch of new rpc
                       case 'g':
                           {
 #ifdef DEBUG_RMC
@@ -1083,9 +1124,9 @@ int main(int argc, char **argv)
                                       slot_to_reuse);
                               // Operations: invalidate send slots and avail-tracker
                               /*send_slot_t* slots_from_node = (send_slot_t*)sslots[i];
-                              send_slot_t* reuseMe = (slots_from_node + slot_to_reuse);
-                              reuseMe->valid = 0;
-                              */
+                                send_slot_t* reuseMe = (slots_from_node + slot_to_reuse);
+                                reuseMe->valid = 0;
+                                */
                               send_metadata_t* meta_from_node = (send_metadata_t*)avail_slots[i];
                               send_metadata_t* meToo = (meta_from_node + slot_to_reuse);
 
@@ -1095,18 +1136,18 @@ int main(int argc, char **argv)
                               if( !success ) {
                                   assert( test_val == 1 );
                                   std::cout << "WE HAD SOME MAJOR FAILURE HERE." << std::endl
-                                            << "\t RMC tried to reset send slot #" << (unsigned int) slot_to_reuse
-                                            << ", belonging to node #" << i
-                                            << ", and found that its value was not 0. Value loaded: " << test_val << std::endl;
-                                  printf("Error occurred on rpc RECV (\'g\') at rmc #%d. slot QP info is:\n"
-                                          "\t{ sender's QP : %d },\n"
-                                          "\t{ slot_to_reuse : %d },\n",
-                                          this_nid, 
-                                          sending_qp,
-                                          slot_to_reuse);
+                                          << "\t RMC tried to reset send slot #" << (unsigned int) slot_to_reuse
+                                          << ", belonging to node #" << i
+                                          << ", and found that its value was not 0. Value loaded: " << test_val << std::endl;
+                                      printf("Error occurred on rpc RECV (\'g\') at rmc #%d. slot QP info is:\n"
+                                              "\t{ sender's QP : %d },\n"
+                                              "\t{ slot_to_reuse : %d },\n",
+                                              this_nid, 
+                                              sending_qp,
+                                              slot_to_reuse);
+                                  }
+                                  break;
                               }
-                              break;
-                          }
                       default:
                         DLogNoVar("Garbage op. in stream recv. from socket.... drop it on the floor.\n");
                   }
