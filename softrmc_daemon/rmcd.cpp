@@ -1064,6 +1064,16 @@ int main(int argc, char **argv)
                                   newEntry.tid = sending_qp;
                                   newEntry.slot_idx = recv_slot;
                                   newEntry.length = arg_len;
+                                  DLog("@ node %u, creating new srq entry:\n"
+                                          "\t{ sending_nid : %u },\n"
+                                          "\t{ tid (sending_qp): %u },\n"
+                                          "\t{ slot_idx : %u },\n"
+                                          "\t{ length : %u },\n",
+                                          this_nid, 
+                                          newEntry.sending_nid,
+                                          newEntry.tid,
+                                          newEntry.slot_idx,
+                                          newEntry.length);
                                   bool success = enqueue_in_srq(&rpc_srq,newEntry);
                                   if( !success ) {
                                       DLog("FAILED rmc_send to SRQ, queue was full. Probably unstable.\n");
@@ -1088,11 +1098,11 @@ int main(int argc, char **argv)
                                           cq->q[*local_cq_head].tid = rpc_to_dispatch.sending_qp;
                                           cq->q[*local_cq_head].slot_idx = rpc_to_dispatch.slot_idx;
                                           cq->q[*local_cq_head].length = rpc_to_dispatch.length;
-                                          DLog("@ node %d, DISPATCHING TO:\n"
-                                                  "\t{ qp_to_terminate : %d },\n"
-                                                  "\t{ sending_nid : %d },\n"
-                                                  "\t{ sender's QP : %d },\n"
-                                                  "\t{ recv_slot : %d },\n",
+                                          DLog("@ node %u, DISPATCHING TO:\n"
+                                                  "\t{ qp_to_terminate : %u },\n"
+                                                  "\t{ sending_nid : %u },\n"
+                                                  "\t{ sender's QP : %u },\n"
+                                                  "\t{ recv_slot : %u },\n",
                                                   this_nid, 
                                                   dispatch_core_id,
                                                   rpc_to_dispatch.sending_nid,
