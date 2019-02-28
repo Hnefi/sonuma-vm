@@ -117,6 +117,21 @@ RMC_Message::pack(char* buf)
         memcpy(buf,this->payload.data(),this->payload_len);
         buf += this->payload_len;
     }
+#ifdef DEBUG_RMC
+    printf(" Packed @ source : message_len %d\n "
+           " : mType %c\n "
+           " : terminate_to_senders_qp %c\n "
+           " : rpc_id %d\n "
+           " : senders_qp %d\n "
+           " : slot %d\n "
+           " : paylod %s\n ",
+           message_len,
+           msg_type,
+           terminate_to_senders_qp,
+           rpc_id,
+           senders_qp,
+           payload.data());
+#endif
 }
 
 // Does the reverse of pack(...)
@@ -152,7 +167,7 @@ RMC_Message unpackToRMC_Message(char* buf)
     slot = ntohs(*slot_tmptr);
 #ifdef DEBUG_RMC
     printf(" Demultiplexed: message_len %d\n "
-           " : mtype %c\n "
+           " : mType %c\n "
            " : terminate_to_senders_qp %c\n "
            " : rpc_id %d\n "
            " : senders_qp %d\n "
@@ -161,7 +176,6 @@ RMC_Message unpackToRMC_Message(char* buf)
            mType,
            terminate_to_senders_qp,
            rpc_id,
-           mType,
            senders_qp,
            slot);
 #endif
