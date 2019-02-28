@@ -1060,7 +1060,7 @@ int main(int argc, char **argv)
                                   uint8_t* local_cq_SR = &(local_CQ_SRs[qp_to_terminate]);
                                   cq->q[*local_cq_head].SR = *local_cq_SR;
                                   cq->q[*local_cq_head].sending_nid = i;
-                                  cq->q[*local_cq_head].tid = sending_qp;
+                                  cq->q[*local_cq_head].sending_qp = sending_qp;
                                   cq->q[*local_cq_head].slot_idx = recv_slot;
                                   cq->q[*local_cq_head].length = arg_len ;
                                   DLog("Received rpc SEND RESPONSE (\'s\') at rmc #%d. Receive-side QP info is:\n"
@@ -1083,17 +1083,17 @@ int main(int argc, char **argv)
                                   // this is an rpc request, goes to the srq
                                   rpc_srq_entry_t newEntry;
                                   newEntry.sending_nid = i;
-                                  newEntry.tid = sending_qp;
+                                  newEntry.sending_qp = sending_qp;
                                   newEntry.slot_idx = recv_slot;
                                   newEntry.length = arg_len;
                                   DLog("@ node %u, creating new srq entry:\n"
                                           "\t{ sending_nid : %u },\n"
-                                          "\t{ tid (sending_qp): %u },\n"
+                                          "\t{ sending_qp: %u },\n"
                                           "\t{ slot_idx : %u },\n"
                                           "\t{ length : %u },\n",
                                           this_nid, 
                                           newEntry.sending_nid,
-                                          newEntry.tid,
+                                          newEntry.sending_qp,
                                           newEntry.slot_idx,
                                           newEntry.length);
                                   bool success = enqueue_in_srq(&rpc_srq,newEntry);
@@ -1117,7 +1117,7 @@ int main(int argc, char **argv)
                                           uint8_t* local_cq_SR = &(local_CQ_SRs[dispatch_core_id]);
                                           cq->q[*local_cq_head].SR = *local_cq_SR;
                                           cq->q[*local_cq_head].sending_nid = rpc_to_dispatch.sending_nid;
-                                          cq->q[*local_cq_head].tid = rpc_to_dispatch.sending_qp;
+                                          cq->q[*local_cq_head].sending_qp = rpc_to_dispatch.sending_qp;
                                           cq->q[*local_cq_head].slot_idx = rpc_to_dispatch.slot_idx;
                                           cq->q[*local_cq_head].length = rpc_to_dispatch.length;
                                           DLog("@ node %u, DISPATCHING TO:\n"
