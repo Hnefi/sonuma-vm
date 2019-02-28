@@ -86,7 +86,7 @@ int main(int argc, char **argv)
     printf("Failed to allocate local buffer\n");
     return -1;
   } else {
-    fprintf(stdout, "Local buffer was mapped to address %p, number of pages is %ld\n",
+    fprintf(stdout, "Local buffer was mapped to address %p, number of pages is %lu\n",
 	    lbuff, buf_size/PAGE_SIZE);
   }
 
@@ -121,7 +121,7 @@ int main(int argc, char **argv)
   
   lbuff_slot = 0;
   
-  for(size_t i = 0; i < num_iter; i++) {
+  for(int i = 0; i < num_iter; i++) {
     ctx_offset = (i * PAGE_SIZE) % ctx_size;
     lbuff_slot = (i * sizeof(uint32_t)) % (PAGE_SIZE - OBJ_READ_SIZE);
 
@@ -131,8 +131,7 @@ int main(int argc, char **argv)
       rmc_rread_sync(wq, cq, lbuff, lbuff_slot, snid, CTX_0, ctx_offset, OBJ_READ_SIZE);
     } else if(op == 'w') {
       rmc_rwrite_sync(wq, cq, lbuff, lbuff_slot, snid, CTX_0, ctx_offset, OBJ_READ_SIZE);
-    } else
-      ;
+    } else {  }
     
     end = rdtsc();
     

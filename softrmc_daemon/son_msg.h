@@ -46,23 +46,34 @@ class RMC_Message {
     // all data in here is uint32 and uint16 (unsigned long & unsigned short)
     // to use the htonl(...) and htons(...) functions
     public:
-        uint32_t message_len; // 4B on wire
-        char msg_type;        // 1B on wire
-        uint16_t senders_qp;  // 2B
-        uint16_t slot;        // 2B
+        uint32_t message_len;       // 4B on wire
+        char msg_type;              // 1B on wire
+        char terminate_to_senders_qp; // 1B
+        uint16_t rpc_id;            // 2B
+        uint16_t senders_qp;        // 2B
+        uint16_t slot;              // 2B
         std::vector<char> payload; // max 2048B
 
-        // THINGS NOT SENT ON WIRES.
+        // THINGS NOT SENT ON WIRE // 
         uint32_t payload_len; 
-        static uint32_t total_header_bytes;
 
-        RMC_Message(uint16_t aQP, uint16_t aSlot, char aType, char* aPayloadPtr,uint32_t payloadLen);
+        RMC_Message(uint16_t anRPC_ID, uint16_t aQP, uint16_t aSlot, char aType, char* aPayloadPtr,uint32_t payloadLen, char useQP_to_terminate);
+        RMC_Message(uint16_t anRPC_ID,uint16_t aQP, uint16_t aSlot, char aType);
         RMC_Message(uint16_t aQP, uint16_t aSlot, char aType);
         uint32_t getRequiredLenBytes();
         void pack(char* buf);
+        static uint32_t calcTotalHeaderBytes() {
+            uint32_t hbytes = 
+                sizeof(uint32_t) + // message_len;       // 4B on wire
+                sizeof(char) +     // msg_type;              // 1B on wire
+                sizeof(char) +     // terminate_to_senders_qp; // 1B
+                sizeof(uint16_t) + // rpc_id;            // 2B
+                sizeof(uint16_t) + // senders_qp;        // 2B
+                sizeof(uint16_t) ; // slot;              // 2B
+            return hbytes;
+        }
 
-        static uint32_t getTotalHeaderBytes() { return total_header_bytes; }
-        static uint32_t getMessageHeaderBytes() { return total_header_bytes-getLenParamBytes(); }
+        uint32_t getMessageHeaderBytes() { return RMC_Message::calcTotalHeaderBytes() -getLenParamBytes(); }
         static uint32_t getLenParamBytes() { return sizeof(uint32_t); }
 };
 

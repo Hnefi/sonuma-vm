@@ -154,7 +154,7 @@ int kal_reg_ctx(int fd, uint8_t **ctx_ptr, uint32_t num_pages)
 }
 
 /* Msutherl: New version of rmc_send, using paired send/recv slots */
-void rmc_send(rmc_wq_t *wq, char *lbuff_ptr, int lbuff_offset, size_t size, int snid, uint16_t sending_qp, send_metadata_t* send_slot,uint16_t slot_idx)
+void rmc_send(rmc_wq_t *wq, char *lbuff_ptr, int lbuff_offset, size_t size, int snid, uint16_t sending_qp, send_metadata_t* send_slot,uint16_t slot_idx, bool send_qp_terminate)
 {
     uint8_t wq_head = wq->head;
     DLogNoVar("[rmc_send] Entering rmc_send.");
@@ -180,6 +180,8 @@ void rmc_send(rmc_wq_t *wq, char *lbuff_ptr, int lbuff_offset, size_t size, int 
     wq->q[wq_head].SR = wq->SR;
     // Msutherl:
     wq->q[wq_head].slot_idx = slot_idx;
+    wq->q[wq_head].qp_num_at_receiver = sending_qp;
+    wq->q[wq_head].send_qp_terminate = send_qp_terminate;
 
     wq->head =  wq->head + 1;
     //check if WQ reached its end
@@ -189,7 +191,7 @@ void rmc_send(rmc_wq_t *wq, char *lbuff_ptr, int lbuff_offset, size_t size, int 
     }
 }
 
-void rmc_recv(rmc_wq_t *wq,int snid,uint16_t sending_qp,uint16_t slot_idx)
+void rmc_recv(rmc_wq_t *wq,int snid,uint16_t sending_qp,uint16_t slot_idx,bool dispatch)
 {
     // create WQ entry, response for arguments given to CQ
     uint8_t wq_head = wq->head;
@@ -206,6 +208,7 @@ void rmc_recv(rmc_wq_t *wq,int snid,uint16_t sending_qp,uint16_t slot_idx)
     wq->q[wq_head].SR = wq->SR;
     wq->q[wq_head].slot_idx = slot_idx;
         // signal RMC to reuse this slot
+    wq->q[wq_head].dispatch_on_recv = dispatch;
 
     wq->head =  wq->head + 1;
     //check if WQ reached its end
@@ -218,7 +221,6 @@ void rmc_recv(rmc_wq_t *wq,int snid,uint16_t sending_qp,uint16_t slot_idx)
 int get_send_slot(send_metadata_t* slot_data,size_t len)
 { 
     for(size_t i = 0; i < len; i++) {
-        //int old = slot_data[i].valid.exchange(0);
         int test_val = 1, new_val = 0;
         bool successful = slot_data[i].valid.compare_exchange_strong(test_val,new_val);
         if( successful ) { // got slot

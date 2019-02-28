@@ -85,7 +85,7 @@ int main(int argc, char **argv)
     printf("Failed to allocate local buffer\n");
     return -1;
   } else {
-    fprintf(stdout, "Local buffer was mapped to address %p, number of pages is %d\n",
+    fprintf(stdout, "Local buffer was mapped to address %p, number of pages is %lu\n",
 	    lbuff, buf_size/PAGE_SIZE);
   }
 
@@ -94,7 +94,7 @@ int main(int argc, char **argv)
     printf("Failed to allocate context\n");
     return -1;
   } else {
-    fprintf(stdout, "Ctx buffer was registered, ctx_size=%d, %d pages.\n",
+    fprintf(stdout, "Ctx buffer was registered, ctx_size=%lu, %lu pages.\n",
 	    ctx_size, ctx_size*sizeof(uint8_t) / PAGE_SIZE);
   }
   
@@ -116,11 +116,11 @@ int main(int argc, char **argv)
 
   lbuff_slot = 0;
   
-  for(size_t i = 0; i < num_iter; i++) {
+  for(int i = 0; i < num_iter; i++) {
     ctx_offset = (i * PAGE_SIZE) % ctx_size; 
     lbuff_slot = (i * sizeof(uint32_t)) % (PAGE_SIZE - OBJ_READ_SIZE);
     
-    printf("[loop] local buffer offset: %u; context offset: %u\n",
+    printf("[loop] local buffer offset: %lu; context offset: %lu\n",
 	   lbuff_slot, ctx_offset/PAGE_SIZE);
 
     rmc_check_cq(wq, cq, &handler, NULL);            
@@ -129,8 +129,7 @@ int main(int argc, char **argv)
       rmc_rread_async(wq, lbuff, lbuff_slot, snid, CTX_0, ctx_offset, OBJ_READ_SIZE);
     } else if(op == 'w') {
       rmc_rwrite_async(wq, lbuff, lbuff_slot, snid, CTX_0, ctx_offset, OBJ_READ_SIZE);
-    } else
-      ;
+    }
   }
 
   while(op_cnt > 0) {

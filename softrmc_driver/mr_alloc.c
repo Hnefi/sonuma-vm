@@ -75,7 +75,7 @@ static unsigned long any_v2p(unsigned long vaddr)
 {
   struct mm_struct *mm = current->mm;
   pgd_t *pgd = pgd_offset(mm, vaddr);
-  //p4d_t *p4d; // MARK: uncomment for 5-level PTEs
+  p4d_t *p4d; // MARK: uncomment for 5-level PTEs
   pud_t *pud;
   pmd_t *pmd;
   pte_t *pte;
@@ -93,7 +93,6 @@ static unsigned long any_v2p(unsigned long vaddr)
   }
 
   // MARK: updates this to work with kernel versions w. PTE-5 level
-  /*
   p4d = p4d_offset(pgd, vaddr);
   if (bad_address(p4d)) {
     printk(KERN_ALERT "[any_v2p] Alert: bad address of p4d %p\n", p4d);
@@ -103,10 +102,9 @@ static unsigned long any_v2p(unsigned long vaddr)
     printk(KERN_ALERT "[any_v2p] Alert: p4d not present %lu\n", (long unsigned int)p4d);
     goto out;
   }
-  */
   // END MARk
 
-  pud = pud_offset(pgd, vaddr);
+  pud = pud_offset(p4d, vaddr);
   if (bad_address(pud)) {
     printk(KERN_ALERT "[any_v2p] Alert: bad address of pud %p\n", pud);
     goto bad;
