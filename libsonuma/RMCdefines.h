@@ -124,6 +124,7 @@ typedef struct rpc_srq_entry {
     uint16_t sending_qp;
     uint64_t slot_idx;
     uint64_t length;
+    bool valid;
 } rpc_srq_entry_t;
 
 /* Msutherl */

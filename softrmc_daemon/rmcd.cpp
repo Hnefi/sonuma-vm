@@ -141,18 +141,21 @@ int count_valid_cq_entries(volatile rmc_cq_t* cq, int8_t local_cq_head)
     return retCount;
 }
 
+static
 bool srq_empty(rpc_srq_t* srq)
 {
     assert(srq);
     return(!srq->full && (srq->head == srq->tail));
 }
 
+static
 bool srq_full(rpc_srq_t* srq) 
 { 
     assert(srq);
     return srq->full;
 }
 
+static
 void advance_srq_head(rpc_srq_t* srq)
 {
     assert(srq);
@@ -160,6 +163,7 @@ void advance_srq_head(rpc_srq_t* srq)
     srq->full = (srq->head == srq->tail);
 }
 
+static
 void advance_srq_tail(rpc_srq_t* srq)
 {
     assert(srq);
@@ -167,26 +171,42 @@ void advance_srq_tail(rpc_srq_t* srq)
     srq->full = false;
 }
 
+static
 bool enqueue_in_srq(rpc_srq_t* srq, rpc_srq_entry_t newEntry)
 {
     assert(srq);
     if( !srq_full(srq) ) {
         srq->q[srq->head] = newEntry;
+        srq->q[srq->head].valid = true;
         advance_srq_head(srq);
         return true;
     }
     return false;
 }
 
+static
 bool dequeue_from_srq(rpc_srq_t* srq,rpc_srq_entry_t* returned_entry )
 {
     assert(srq);
     if(!srq_empty(srq)) {
+        assert(srq->q[srq->tail].valid == true);
         *returned_entry = srq->q[srq->tail];
+        srq->q[srq->tail].valid = false;
         advance_srq_tail(srq);
         return true;
     } 
     return false;
+}
+
+static
+void srq_init(rpc_srq_t* srq)
+{
+    for(size_t i = 0; i < MAX_NUM_SRQ_SLOTS;i++) {
+        srq->q[i].valid = false;
+    }
+    srq->tail = 0;
+    srq->head = 0;
+    srq->full = false;
 }
 
 // Msutherl: returns qp number for RMC on server-side to terminate msg. into
@@ -724,6 +744,8 @@ int main(int argc, char **argv)
       sprintf(fmt,"local_buf_ref_%d.txt",i);
       local_buf_alloc(&local_buffers[i],fmt,1);
   }
+
+  srq_init(&rpc_srq);
 
   // allocate messaging domain metadata
   tmp_copies = (char**) calloc(node_cnt,sizeof(char*));
