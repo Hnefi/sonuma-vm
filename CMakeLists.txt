@@ -5,8 +5,8 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     set(CMAKE_C_COMPILER gcc)
     set(CMAKE_CXX_COMPILER g++)
 
-    set(CMAKE_CXX_FLAGS "-std=c++14 -Wall -Wextra -pedantic -Wno-unused-function -march=native -Wno-unused-parameter -g")
-    set(CMAKE_C_FLAGS "-std=c99 -Wall -Wextra -pedantic -Wno-unused-function -Wno-unused-parameter -march=native -g")
+    set(CMAKE_CXX_FLAGS "-std=c++14 -Wall -Wextra -pedantic -Wno-unused-function -march=native -Wno-unused-parameter -Wno-format -g")
+    set(CMAKE_C_FLAGS "-std=c99 -Wall -Wextra -pedantic -Wno-unused-function -Wno-unused-parameter -Wno-format -march=native -g")
     set(REL_PATH "../build")
 else()
     #i am called from sonofa_herd with subdirectory

@@ -118,19 +118,19 @@ RMC_Message::pack(char* buf)
         buf += this->payload_len;
     }
 #ifdef DEBUG_RMC
-    printf(" Packed @ source : message_len %d\n "
+    printf(" Packed @ source : message_len %u\n "
            " : mType %c\n "
            " : terminate_to_senders_qp %c\n "
-           " : rpc_id %d\n "
-           " : senders_qp %d\n "
-           " : slot %d\n "
-           " : paylod %s\n ",
+           " : rpc_id %u\n "
+           " : senders_qp %u\n "
+           " : slot %u\n "
+           " : paylod %u\n ",
            message_len,
            msg_type,
            terminate_to_senders_qp,
            rpc_id,
            senders_qp,
-           payload.data());
+           slot);
 #endif
 }
 
