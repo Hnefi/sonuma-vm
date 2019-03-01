@@ -985,9 +985,9 @@ int main(int argc, char **argv)
                                       rpc_srq_entry_t newEntry;
                                       newEntry.sending_nid = i;
                                       newEntry.length = msgReceived.payload_len;
+                                      newEntry.slot_idx = rpc_srq.head;
                                       int srq_slot = enqueue_in_srq(&rpc_srq,newEntry);
                                       assert(srq_slot >= 0); // checked avail. slot above
-                                      newEntry.slot_idx = srq_slot;
                                       DLog("@ node %u, creating new DIRECT DISP. srq entry:\n"
                                               "\t{ sending_nid : %u },\n"
                                               "\t{ slot_idx : %u },\n"
@@ -1016,7 +1016,7 @@ int main(int argc, char **argv)
                                       uint8_t* local_cq_SR = &(local_CQ_SRs[qp_to_terminate]);
                                       cq->q[*local_cq_head].SR = *local_cq_SR;
                                       cq->q[*local_cq_head].sending_nid = i;
-                                      cq->q[*local_cq_head].slot_idx = srq_slot;
+                                      cq->q[*local_cq_head].slot_idx = recv_slot;
                                       cq->q[*local_cq_head].length = msgReceived.getPayloadBytes();
                                       DLog("Received rpc SEND RESPONSE (\'s\') at rmc #%d. Receive-side QP info is:\n"
                                               "\t{ qp_to_terminate : %d },\n"
@@ -1049,10 +1049,10 @@ int main(int argc, char **argv)
                                       newEntry.sending_nid = i;
                                       newEntry.sending_qp = msgReceived.senders_qp;
                                       newEntry.length = msgReceived.payload_len;
+                                      newEntry.slot_idx = rpc_srq.head;
                                       int srq_slot = enqueue_in_srq(&rpc_srq,newEntry);
                                       assert(srq_slot >= 0); // checked avail. slot above
 
-                                      newEntry.slot_idx = srq_slot;
                                       DLog("@ node %u, creating new srq entry:\n"
                                               "\t{ sending_nid : %u },\n"
                                               "\t{ sending_qp: %u },\n"
