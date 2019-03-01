@@ -135,23 +135,4 @@ typedef struct rpc_srq {
     bool full;
 } rpc_srq_t; 
 
-#ifdef __cplusplus
-#include <atomic> // Msutherl
-#include <cstdio> // Msutherl
-class send_metadata_t {
-    public:
-        std::atomic<int> valid;
-        unsigned sslot_index;
-        uint64_t msg_size;
-        uint16_t sending_qp;
-        uint16_t wq_entry_idx;
-};
-
-#else 
-
-// this is C, forward declare this
-typedef struct send_metadata_t send_metadata_t;
-
-#endif
-
 #endif /* H_RMC_DEFINES */

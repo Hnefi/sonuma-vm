@@ -32,10 +32,3 @@
 /*
  *  Trampoline functions to get into the sonuma c++ library, from pure C.
  */
-
-#include "sonuma.h"
-
-int get_send_slot_trampoline(send_metadata_t* slot_data, size_t len)
-{
-    return get_send_slot(slot_data,len); // call into c++
-}

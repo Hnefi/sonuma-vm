@@ -39,6 +39,7 @@
 #include <sys/types.h>
 #include <arpa/inet.h>
 #include <cstring>
+#include <stdio.h>
 
 using namespace std;
 
@@ -50,7 +51,7 @@ void write_buf(char* buf, size_t len)
 }
 
 RMC_Message::RMC_Message(uint16_t anRPC_ID,uint16_t aQP, uint16_t aSlot, char aType,char* aPayloadPtr,uint32_t aPayLen,char useQP_terminate) :
-    message_len(RMC_Message::calcTotalHeaderBytes() + aPayLen), // does not include 4B for len itself
+    message_len(RMC_Message::calcTotalHeaderBytes() + aPayLen),
     msg_type(aType),
     terminate_to_senders_qp(useQP_terminate),
     rpc_id(anRPC_ID),
@@ -61,7 +62,7 @@ RMC_Message::RMC_Message(uint16_t anRPC_ID,uint16_t aQP, uint16_t aSlot, char aT
 { }
 
 RMC_Message::RMC_Message(uint16_t anRPC_ID,uint16_t aQP, uint16_t aSlot, char aType) :
-    message_len(RMC_Message::calcTotalHeaderBytes()), // does not include 4B for len itself
+    message_len(RMC_Message::calcTotalHeaderBytes()),
     msg_type(aType),
     terminate_to_senders_qp('f'),
     rpc_id(anRPC_ID),
@@ -72,7 +73,7 @@ RMC_Message::RMC_Message(uint16_t anRPC_ID,uint16_t aQP, uint16_t aSlot, char aT
 { }
 
 RMC_Message::RMC_Message(uint16_t aQP, uint16_t aSlot, char aType) :
-    message_len(RMC_Message::calcTotalHeaderBytes()), // does not include 4B for len itself
+    message_len(RMC_Message::calcTotalHeaderBytes()),
     msg_type(aType),
     terminate_to_senders_qp('f'),
     rpc_id(0), /* This should never be read */
@@ -81,9 +82,6 @@ RMC_Message::RMC_Message(uint16_t aQP, uint16_t aSlot, char aType) :
     payload(),
     payload_len(0)
 {  }
-
-uint32_t
-RMC_Message::getRequiredLenBytes() { return message_len; }
 
 // This function assumes a byte is 8b (64 bit system)
 void

@@ -146,7 +146,7 @@ int kal_reg_ctx(int fd, uint8_t **ctx_ptr, uint32_t num_pages);
 void rmc_recv(rmc_wq_t *wq,int snid,uint16_t sending_qp,uint16_t slot_idx,bool dispatch);
 
 /* Msutherl: New version of rmc_send, using paired send/recv slots */
-void rmc_send(rmc_wq_t *wq, char *lbuff_ptr, int lbuff_offset, size_t size, int snid, uint16_t sending_qp, send_metadata_t* send_slot,uint16_t slot_idx,bool send_qp_terminate);
+void rmc_send(rmc_wq_t *wq, char *lbuff_ptr, int lbuff_offset, size_t size, int snid, uint16_t sending_qp,bool send_qp_terminate);
 
 //inline methods
 static inline void rmc_rread_sync(rmc_wq_t *wq, rmc_cq_t *cq, uint8_t *lbuff_base,
@@ -425,27 +425,5 @@ static inline void rmc_test_cq_rpc(rmc_cq_t* cq, char** recv_slots, receiveCallb
       }
   } else *sending_nid = -1;
 }
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#if defined(__STDC__) || defined(__cplusplus)
-
-// can access directly the <atomic> members
-extern int get_send_slot(send_metadata_t* slot_data,size_t len);
-extern int get_send_slot_trampoline(send_metadata_t* slot_data,size_t len);
-
-#else 
-
-extern int get_send_slot( );
-//extern inline int get_send_slot_trampoline();
-extern int get_send_slot_trampoline( );
-
-#endif
-
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* H_SONUMA */
