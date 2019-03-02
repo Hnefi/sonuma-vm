@@ -152,6 +152,16 @@ void advance_srq_tail(rpc_srq_t* srq)
 }
 
 static
+void advance_srq_tail_multiple(rpc_srq_t* srq)
+{
+    assert(srq);
+    while( srq->q[srq->tail].valid == false && srq->tail != srq->head ) {
+        srq->tail = (srq->tail + 1) % MAX_NUM_SRQ_SLOTS;
+    }
+    srq->full = false;
+}
+
+static
 int enqueue_in_srq(rpc_srq_t* srq, rpc_srq_entry_t newEntry)
 {
     assert(srq);
@@ -166,7 +176,7 @@ int enqueue_in_srq(rpc_srq_t* srq, rpc_srq_entry_t newEntry)
 }
 
 static
-bool dequeue_from_srq(rpc_srq_t* srq,rpc_srq_entry_t* returned_entry )
+bool dequeue_tail_from_srq(rpc_srq_t* srq,rpc_srq_entry_t* returned_entry )
 {
     assert(srq);
     if(!srq_empty(srq)) {
@@ -174,6 +184,29 @@ bool dequeue_from_srq(rpc_srq_t* srq,rpc_srq_entry_t* returned_entry )
         *returned_entry = srq->q[srq->tail];
         srq->q[srq->tail].valid = false;
         advance_srq_tail(srq);
+        return true;
+    } 
+    return false;
+}
+
+static
+void get_srq_tail_entry(rpc_srq_t* srq, rpc_srq_entry_t* tail_entry)
+{
+    assert(srq);
+    if(!srq_empty(srq)) {
+        assert(srq->q[srq->tail].valid == true);
+        *tail_entry = srq->q[srq->tail];
+    }
+}
+
+static
+bool reset_srq_entry_invalid(rpc_srq_t* srq, uint16_t idx )
+{
+    assert(srq);
+    if(!srq_empty(srq)) {
+        assert(srq->q[idx].valid == true);
+        srq->q[idx].valid = false;
+        advance_srq_tail_multiple(srq);
         return true;
     } 
     return false;
@@ -1083,39 +1116,38 @@ int main(int argc, char **argv)
                                       if( dispatch_core_id >= 0 ) {
                                           // dispatch head of srq
                                           rpc_srq_entry_t rpc_to_dispatch;
-                                          bool success = dequeue_from_srq(&rpc_srq,&rpc_to_dispatch);
-                                          if( !success ) {
-                                              DLog("SRQ is empty.\n");
-                                          } else {
-                                              // create CQ entry to send rpc to the core.
-                                              cq = cqs[dispatch_core_id];
-                                              assert( cq->connected );
-                                              uint8_t* local_cq_head = &(local_CQ_heads[dispatch_core_id]);
-                                              uint8_t* local_cq_SR = &(local_CQ_SRs[dispatch_core_id]);
-                                              cq->q[*local_cq_head].sending_nid = rpc_to_dispatch.sending_nid;
-                                              cq->q[*local_cq_head].sending_qp = rpc_to_dispatch.sending_qp;
-                                              cq->q[*local_cq_head].slot_idx = rpc_to_dispatch.slot_idx;
-                                              cq->q[*local_cq_head].length = rpc_to_dispatch.length;
-                                              // SR is what app polls on, set it last
-                                              cq->q[*local_cq_head].SR = *local_cq_SR;
 
-                                              DLog("@ node %u, DISPATCHING TO:\n"
-                                                      "\t{ qp_to_dispatch: %u },\n"
-                                                      "\t{ sending_nid : %u },\n"
-                                                      "\t{ sender's QP : %u },\n"
-                                                      "\t{ slot_idx : %u },\n",
-                                                      this_nid, 
-                                                      dispatch_core_id,
-                                                      rpc_to_dispatch.sending_nid,
-                                                      rpc_to_dispatch.sending_qp,
-                                                      rpc_to_dispatch.slot_idx );
-                                              *local_cq_head += 1;
-                                              if(*local_cq_head >= MAX_NUM_WQ) {
-                                                  *local_cq_head = 0;
-                                                  *local_cq_SR ^= 1;
-                                              }
-                                              increment_core_occupancy(rpcs_per_core,dispatch_core_id);
-                                          } // end successful srq dequeue 
+                                          get_srq_tail_entry(&rpc_srq,&rpc_to_dispatch);
+                                          assert(rpc_to_dispatch.valid);
+
+                                          // create CQ entry to send rpc to the core.
+                                          cq = cqs[dispatch_core_id];
+                                          assert( cq->connected );
+                                          uint8_t* local_cq_head = &(local_CQ_heads[dispatch_core_id]);
+                                          uint8_t* local_cq_SR = &(local_CQ_SRs[dispatch_core_id]);
+                                          cq->q[*local_cq_head].sending_nid = rpc_to_dispatch.sending_nid;
+                                          cq->q[*local_cq_head].sending_qp = rpc_to_dispatch.sending_qp;
+                                          cq->q[*local_cq_head].slot_idx = rpc_to_dispatch.slot_idx;
+                                          cq->q[*local_cq_head].length = rpc_to_dispatch.length;
+                                          // SR is what app polls on, set it last
+                                          cq->q[*local_cq_head].SR = *local_cq_SR;
+
+                                          DLog("@ node %u, DISPATCHING TO:\n"
+                                                  "\t{ qp_to_dispatch: %u },\n"
+                                                  "\t{ sending_nid : %u },\n"
+                                                  "\t{ sender's QP : %u },\n"
+                                                  "\t{ slot_idx : %u },\n",
+                                                  this_nid, 
+                                                  dispatch_core_id,
+                                                  rpc_to_dispatch.sending_nid,
+                                                  rpc_to_dispatch.sending_qp,
+                                                  rpc_to_dispatch.slot_idx );
+                                          *local_cq_head += 1;
+                                          if(*local_cq_head >= MAX_NUM_WQ) {
+                                              *local_cq_head = 0;
+                                              *local_cq_SR ^= 1;
+                                          }
+                                          increment_core_occupancy(rpcs_per_core,dispatch_core_id);
                                       } else {
                                           DLog("@ node %d, all cores OCCUPIED....\n",this_nid);
                                       }
@@ -1128,12 +1160,14 @@ int main(int argc, char **argv)
                           } // end case 's'
                       case 'g':
                           {
-                              /* FIXME: What is the role of rmc_recv() now with no
+                              /* What is the role of rmc_recv() now with no
                                * explicit send slot to reset?
                                * - it's essentially an explicit ACK
-                               * - what todo with this code?
+                               * - it also cleans up the SRQ by resetting the valid bit
+                               *   of the slot that this recv() corresponds to.
+                               */
 #ifdef DEBUG_RMC
-                              assert( msgReceived.rpc_id == 0); // for recv/replenish
+                              assert( msgReceived.rpc_id == 0 ); // for recv/replenish
 #endif
                               uint16_t sending_qp = msgReceived.senders_qp;
                               uint8_t slot_to_reuse = msgReceived.slot;
@@ -1143,24 +1177,8 @@ int main(int argc, char **argv)
                                       this_nid, 
                                       sending_qp,
                                       slot_to_reuse);
-                              // use CAS to ensure previous value is reset
-                              int test_val = 0, new_val = 1;
-                              //bool success = meToo->valid.compare_exchange_strong(test_val, new_val);
-                              if( false ) {
-                                  assert( test_val == 1 );
-                                  std::cout << "WE HAD SOME MAJOR FAILURE HERE." << std::endl
-                                      << "\t RMC tried to reset send slot #" << (unsigned int) slot_to_reuse
-                                      << ", belonging to node #" << i
-                                      << ", and found that its value was not 0. Value loaded: " << test_val << std::endl;
-                                  printf("Error occurred on rpc RECV (\'g\') at rmc #%d. slot QP info is:\n"
-                                          "\t{ sender's QP : %d },\n"
-                                          "\t{ slot_to_reuse : %d },\n",
-                                          this_nid, 
-                                          sending_qp,
-                                          slot_to_reuse);
-                              }
+                              assert( reset_srq_entry_invalid(&rpc_srq, slot_to_reuse) );
                               break;
-                               */
                           }
                       default:
                         DLogNoVar("Garbage op. in stream recv. from socket.... drop it on the floor.\n");
