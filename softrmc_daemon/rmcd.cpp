@@ -707,6 +707,7 @@ int main(int argc, char **argv)
   size_t n_rbuf_pages = (recv_buffer_size / PAGE_SIZE) + 1;
 
   /* Refactor for NACK implmentation. 1 SRQ, 1 set of receive slots. */
+  recv_slots = nullptr;
   char fmt[20];
   sprintf(fmt,"recv_slots_node%d.txt",this_nid);
   local_buf_alloc(&recv_slots,fmt,n_rbuf_pages);
