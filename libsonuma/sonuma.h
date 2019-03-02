@@ -377,7 +377,7 @@ static inline void rmc_poll_cq_rpc(rmc_cq_t* cq, char** recv_slots, receiveCallb
     *sending_qp = cq->q[cq_tail].sending_qp;
     *slot_idx = cq->q[cq_tail].slot_idx;
 
-    char* node_recv_slot = recv_slots[*sending_nid];
+    char* node_recv_slot = recv_slots[*slot_idx];
     // marshal rpc structure
     rpcArg_t args;
     args.sending_nid = *sending_nid;
@@ -385,9 +385,9 @@ static inline void rmc_poll_cq_rpc(rmc_cq_t* cq, char** recv_slots, receiveCallb
     args.pointerToAppData = argPointerHack;
 #ifdef PRINT_BUFS
     DLog("About to call back to the RPC handler itself. Sending NID: %d, slot_idx: %d, length: %d",*sending_nid, *slot_idx, cq->q[cq_tail].length);
-    DumpHex( (node_recv_slot + (MAX_RPC_BYTES*(*slot_idx))), cq->q[cq_tail].length );
+    DumpHex( (node_recv_slot ), cq->q[cq_tail].length );
 #endif
-    theRPC((node_recv_slot + (MAX_RPC_BYTES*(*slot_idx))), &args);
+    theRPC((node_recv_slot ), &args);
 
     cq->tail = cq->tail + 1;
     //check if CQ reached its end
@@ -410,12 +410,12 @@ static inline void rmc_test_cq_rpc(rmc_cq_t* cq, char** recv_slots, receiveCallb
       *slot_idx = cq->q[cq_tail].slot_idx;
 
       // marshal rpc structure
-      char* node_recv_slot = recv_slots[*sending_nid];
+      char* node_recv_slot = recv_slots[*slot_idx];
       rpcArg_t args;
       args.sending_nid = *sending_nid;
       args.head = &(cq->q[cq_tail]);
       args.pointerToAppData = NULL;
-      theRPC((node_recv_slot + (MAX_RPC_BYTES*(*slot_idx))), &args);
+      theRPC((node_recv_slot ), &args);
 
       cq->tail = cq->tail + 1;
       //check if CQ reached its end

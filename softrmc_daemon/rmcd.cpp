@@ -1014,10 +1014,13 @@ int main(int argc, char **argv)
 
                                       uint8_t* local_cq_head = &(local_CQ_heads[qp_to_terminate]);
                                       uint8_t* local_cq_SR = &(local_CQ_SRs[qp_to_terminate]);
-                                      cq->q[*local_cq_head].SR = *local_cq_SR;
                                       cq->q[*local_cq_head].sending_nid = i;
                                       cq->q[*local_cq_head].slot_idx = recv_slot;
                                       cq->q[*local_cq_head].length = msgReceived.getPayloadBytes();
+
+                                      // SRQ is what app polls on, set it last
+                                      cq->q[*local_cq_head].SR = *local_cq_SR;
+
                                       DLog("Received rpc SEND RESPONSE (\'s\') at rmc #%d. Receive-side QP info is:\n"
                                               "\t{ qp_to_terminate : %d },\n"
                                               "\t{ local_cq_head : %d },\n"
@@ -1088,11 +1091,13 @@ int main(int argc, char **argv)
                                               assert( cq->connected );
                                               uint8_t* local_cq_head = &(local_CQ_heads[dispatch_core_id]);
                                               uint8_t* local_cq_SR = &(local_CQ_SRs[dispatch_core_id]);
-                                              cq->q[*local_cq_head].SR = *local_cq_SR;
                                               cq->q[*local_cq_head].sending_nid = rpc_to_dispatch.sending_nid;
                                               cq->q[*local_cq_head].sending_qp = rpc_to_dispatch.sending_qp;
                                               cq->q[*local_cq_head].slot_idx = rpc_to_dispatch.slot_idx;
                                               cq->q[*local_cq_head].length = rpc_to_dispatch.length;
+                                              // SR is what app polls on, set it last
+                                              cq->q[*local_cq_head].SR = *local_cq_SR;
+
                                               DLog("@ node %u, DISPATCHING TO:\n"
                                                       "\t{ qp_to_dispatch: %u },\n"
                                                       "\t{ sending_nid : %u },\n"
