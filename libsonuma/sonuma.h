@@ -72,7 +72,7 @@ typedef struct rpcArgument {
 
 typedef void (async_handler)(uint8_t tid, wq_entry_t *head, void *owner);
 typedef void (rpc_handler)(uint16_t sending_nid, char* recv_slot, cq_entry_t *head, void *owner);
-typedef void (receiveCallback)(char* rawRecvBufferPtr, rpcArg_t* argPointer);
+typedef void (receiveCallback)(uint8_t* rawRecvBufferPtr, rpcArg_t* argPointer);
 
 /* Helper */
 // Shamelessly imported from: https://gist.github.com/ccbrown/9722406#file-dumphex-c
@@ -363,7 +363,7 @@ static inline int rmc_drain_cq(rmc_wq_t *wq, rmc_cq_t *cq, async_handler *handle
   return 0;
 }
 
-static inline void rmc_poll_cq_rpc(rmc_cq_t* cq, char** recv_slots, receiveCallback* theRPC, uint16_t* sending_nid, uint16_t* sending_qp,uint16_t* slot_idx,void* argPointerHack)
+static inline void rmc_poll_cq_rpc(rmc_cq_t* cq, uint8_t* recv_slot_base, receiveCallback* theRPC, uint16_t* sending_nid, uint16_t* sending_qp,uint16_t* slot_idx,void* argPointerHack)
 {
     uint8_t cq_tail = cq->tail;
 
@@ -377,7 +377,7 @@ static inline void rmc_poll_cq_rpc(rmc_cq_t* cq, char** recv_slots, receiveCallb
     *sending_qp = cq->q[cq_tail].sending_qp;
     *slot_idx = cq->q[cq_tail].slot_idx;
 
-    char* node_recv_slot = recv_slots[*slot_idx];
+    uint8_t* rpc_recv_slot = recv_slot_base + ((*slot_idx) * MAX_RPC_BYTES);
     // marshal rpc structure
     rpcArg_t args;
     args.sending_nid = *sending_nid;
@@ -385,9 +385,9 @@ static inline void rmc_poll_cq_rpc(rmc_cq_t* cq, char** recv_slots, receiveCallb
     args.pointerToAppData = argPointerHack;
 #ifdef PRINT_BUFS
     DLog("About to call back to the RPC handler itself. Sending NID: %d, slot_idx: %d, length: %d",*sending_nid, *slot_idx, cq->q[cq_tail].length);
-    DumpHex( (node_recv_slot ), cq->q[cq_tail].length );
+    DumpHex( (rpc_recv_slot ), cq->q[cq_tail].length );
 #endif
-    theRPC((node_recv_slot ), &args);
+    theRPC((rpc_recv_slot ), &args);
 
     cq->tail = cq->tail + 1;
     //check if CQ reached its end
@@ -397,7 +397,7 @@ static inline void rmc_poll_cq_rpc(rmc_cq_t* cq, char** recv_slots, receiveCallb
     }
 }
 
-static inline void rmc_test_cq_rpc(rmc_cq_t* cq, char** recv_slots, receiveCallback* theRPC,int* sending_nid, uint16_t* sending_qp,uint16_t* slot_idx)
+static inline void rmc_test_cq_rpc(rmc_cq_t* cq, uint8_t* recv_slot_base, receiveCallback* theRPC,int* sending_nid, uint16_t* sending_qp,uint16_t* slot_idx)
 {
   uint8_t cq_tail = cq->tail;
 
@@ -409,13 +409,13 @@ static inline void rmc_test_cq_rpc(rmc_cq_t* cq, char** recv_slots, receiveCallb
       *sending_qp = cq->q[cq_tail].sending_qp;
       *slot_idx = cq->q[cq_tail].slot_idx;
 
+    uint8_t* rpc_recv_slot = recv_slot_base + ((*slot_idx) * MAX_RPC_BYTES);
       // marshal rpc structure
-      char* node_recv_slot = recv_slots[*slot_idx];
       rpcArg_t args;
       args.sending_nid = *sending_nid;
       args.head = &(cq->q[cq_tail]);
       args.pointerToAppData = NULL;
-      theRPC((node_recv_slot ), &args);
+      theRPC((rpc_recv_slot ), &args);
 
       cq->tail = cq->tail + 1;
       //check if CQ reached its end
