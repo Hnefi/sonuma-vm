@@ -1051,7 +1051,7 @@ int main(int argc, char **argv)
                                       newEntry.length = msgReceived.payload_len;
                                       newEntry.slot_idx = rpc_srq.head;
                                       int srq_slot = enqueue_in_srq(&rpc_srq,newEntry);
-                                      assert(srq_slot >= 0); // checked avail. slot above
+                                      assert(srq_slot >= 0 && srq_slot == newEntry.slot_idx ); // checked avail. slot above
 
                                       DLog("@ node %u, creating new srq entry:\n"
                                               "\t{ sending_nid : %u },\n"
@@ -1094,10 +1094,10 @@ int main(int argc, char **argv)
                                               cq->q[*local_cq_head].slot_idx = rpc_to_dispatch.slot_idx;
                                               cq->q[*local_cq_head].length = rpc_to_dispatch.length;
                                               DLog("@ node %u, DISPATCHING TO:\n"
-                                                      "\t{ qp_to_terminate : %u },\n"
+                                                      "\t{ qp_to_dispatch: %u },\n"
                                                       "\t{ sending_nid : %u },\n"
                                                       "\t{ sender's QP : %u },\n"
-                                                      "\t{ recv_slot : %u },\n",
+                                                      "\t{ slot_idx : %u },\n",
                                                       this_nid, 
                                                       dispatch_core_id,
                                                       rpc_to_dispatch.sending_nid,
