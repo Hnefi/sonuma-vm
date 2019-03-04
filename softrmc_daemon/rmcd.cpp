@@ -890,6 +890,7 @@ int main(int argc, char **argv)
                           if( curr->dispatch_on_recv ) {
                               decrement_core_occupancy(rpcs_per_core,qp_num);
                           }
+                          assert( reset_srq_entry_invalid(&rpc_srq, curr->slot_idx) );
                           break;
                       }
                   case 'a': ;
@@ -1163,8 +1164,6 @@ int main(int argc, char **argv)
                               /* What is the role of rmc_recv() now with no
                                * explicit send slot to reset?
                                * - it's essentially an explicit ACK
-                               * - it also cleans up the SRQ by resetting the valid bit
-                               *   of the slot that this recv() corresponds to.
                                */
 #ifdef DEBUG_RMC
                               assert( msgReceived.rpc_id == 0 ); // for recv/replenish
@@ -1177,7 +1176,6 @@ int main(int argc, char **argv)
                                       this_nid, 
                                       sending_qp,
                                       slot_to_reuse);
-                              assert( reset_srq_entry_invalid(&rpc_srq, slot_to_reuse) );
                               break;
                           }
                       default:
