@@ -121,8 +121,7 @@ RMC_Message::pack(char* buf)
            " : terminate_to_senders_qp %c\n "
            " : rpc_id %u\n "
            " : senders_qp %u\n "
-           " : slot %u\n "
-           " : paylod %u\n ",
+           " : slot %u\n ",
            message_len,
            msg_type,
            terminate_to_senders_qp,
