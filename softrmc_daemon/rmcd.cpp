@@ -970,10 +970,6 @@ int main(int argc, char **argv)
           if( i != this_nid ) {
               memset(tmp_copies, 0, MAX_RPC_BYTES + RMC_Message::calcTotalHeaderBytes());
               char* rbuf = tmp_copies;
-#ifdef PRINT_BUFS
-              DLog("Dumping rbuf before receiving the length parameter....\n");
-              DumpHex( (char*) rbuf, 4);
-#endif
               // recv 4 bytes (header size) 
               int nrecvd = recv(sinfo[i].fd, rbuf, RMC_Message::getLenParamBytes() , MSG_DONTWAIT);
               int rec_round_2 = 0;
@@ -988,18 +984,13 @@ int main(int argc, char **argv)
                   //perror("[rmc_poll] Failed on recv(...) waiting for first byte...\n");
               }
 
-#ifdef PRINT_BUFS
-              DLog("Dumping rbuf AFTER receiving the length parameter....\n");
-              DumpHex( (char*) rbuf, 4);
-#endif
-
               // otherwise, we now have a full header
               assert( (nrecvd + rec_round_2) == (int) RMC_Message::getLenParamBytes() );
 
               // read it and figure out how much else to wait for
               uint32_t msgLengthReceived = ntohl(*((uint32_t*)rbuf));
               DLog("Next msg will come with length: %d\n",msgLengthReceived);
-              nrecvd = recv(sinfo[i].fd, (rbuf + RMC_Message::getLenParamBytes()), msgLengthReceived, 0); // block to get it all
+              nrecvd = recv(sinfo[i].fd, (rbuf + RMC_Message::getLenParamBytes()), msgLengthReceived - RMC_Message::getLenParamBytes(), 0); // block to get it all - *** Note: subtract getLenParamBytes() because I GOT THOSE BYTES ABOVE
               if( nrecvd > 0 ) {
 #ifdef PRINT_BUFS
                   DLog("[rmc_poll] got rest of message, nbytes = %d\n",nrecvd);
@@ -1009,7 +1000,7 @@ int main(int argc, char **argv)
                   RMC_Message msgReceived = unpackToRMC_Message(rbuf);
 #ifdef PRINT_BUFS
                   if( msgReceived.msg_type == 's' ) {
-                      DLog("Printing RPC Buffer after unpack to payload.\n");
+                      DLog("Printing RPC Buffer after unpack to payload, message_len = %d.\n",msgReceived.message_len);
                       DumpHex( msgReceived.payload.data() , msgReceived.message_len );
                   }
 #endif
