@@ -970,6 +970,10 @@ int main(int argc, char **argv)
           if( i != this_nid ) {
               memset(tmp_copies, 0, MAX_RPC_BYTES + RMC_Message::calcTotalHeaderBytes());
               char* rbuf = tmp_copies;
+#ifdef PRINT_BUFS
+              DLog("Dumping rbuf before receiving the length parameter....\n");
+              DumpHex( (char*) rbuf, 4);
+#endif
               // recv 4 bytes (header size) 
               int nrecvd = recv(sinfo[i].fd, rbuf, RMC_Message::getLenParamBytes() , MSG_DONTWAIT);
               int rec_round_2 = 0;
@@ -984,8 +988,13 @@ int main(int argc, char **argv)
                   //perror("[rmc_poll] Failed on recv(...) waiting for first byte...\n");
               }
 
+#ifdef PRINT_BUFS
+              DLog("Dumping rbuf AFTER receiving the length parameter....\n");
+              DumpHex( (char*) rbuf, 4);
+#endif
+
               // otherwise, we now have a full header
-              assert( (nrecvd + rec_round_2) >= (int) RMC_Message::getLenParamBytes() );
+              assert( (nrecvd + rec_round_2) == (int) RMC_Message::getLenParamBytes() );
 
               // read it and figure out how much else to wait for
               uint32_t msgLengthReceived = ntohl(*((uint32_t*)rbuf));
