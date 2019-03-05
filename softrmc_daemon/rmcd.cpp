@@ -968,6 +968,7 @@ int main(int argc, char **argv)
       // Msutherl: check all sockets (sinfos) for outstanding rpc
       for(i = 0; i < node_cnt; i++) {
           if( i != this_nid ) {
+              memset(rbuf, 0, MAX_RPC_BYTES + RMC_Message::calcTotalHeaderBytes());
               char* rbuf = tmp_copies;
               // recv 4 bytes (header size) 
               int nrecvd = recv(sinfo[i].fd, rbuf, RMC_Message::getLenParamBytes() , MSG_DONTWAIT);
