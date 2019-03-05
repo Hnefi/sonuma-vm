@@ -68,6 +68,7 @@ typedef struct rpcArgument {
     uint16_t sending_nid;
     cq_entry_t* head;
     void* pointerToAppData; // cast me
+    bool is_nack;
 } rpcArg_t;
 
 typedef void (async_handler)(uint8_t tid, wq_entry_t *head, void *owner);
@@ -383,6 +384,8 @@ static inline void rmc_poll_cq_rpc(rmc_cq_t* cq, uint8_t* recv_slot_base, receiv
     args.sending_nid = *sending_nid;
     args.head = &(cq->q[cq_tail]);
     args.pointerToAppData = argPointerHack;
+    args.is_nack = cq->q[cq_tail].is_nack ;
+
 #ifdef PRINT_BUFS
     DLog("About to call back to the RPC handler itself. Sending NID: %d, slot_idx: %d, length: %d",*sending_nid, *slot_idx, cq->q[cq_tail].length);
     DumpHex( (rpc_recv_slot ), cq->q[cq_tail].length );
@@ -415,6 +418,7 @@ static inline void rmc_test_cq_rpc(rmc_cq_t* cq, uint8_t* recv_slot_base, receiv
       args.sending_nid = *sending_nid;
       args.head = &(cq->q[cq_tail]);
       args.pointerToAppData = NULL;
+      args.is_nack = cq->q[cq_tail].is_nack ;
       theRPC((rpc_recv_slot ), &args);
 
       cq->tail = cq->tail + 1;
