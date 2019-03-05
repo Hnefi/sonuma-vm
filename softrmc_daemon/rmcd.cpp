@@ -1089,8 +1089,8 @@ int main(int argc, char **argv)
                                       newEntry.length = msgReceived.payload_len;
                                       newEntry.slot_idx = rpc_srq.head;
                                       int srq_slot = enqueue_in_srq(&rpc_srq,newEntry);
-                                      assert(srq_slot >= 0 && srq_slot == newEntry.slot_idx ); // checked avail. slot above
-
+                                      assert(srq_slot >= 0);
+                                      assert((uint16_t) srq_slot == newEntry.slot_idx );
                                       DLog("@ node %u, creating new srq entry:\n"
                                               "\t{ sending_nid : %u },\n"
                                               "\t{ sending_qp: %u },\n"
@@ -1153,8 +1153,19 @@ int main(int argc, char **argv)
                                           DLog("@ node %d, all cores OCCUPIED....\n",this_nid);
                                       }
                                   } else { // no slots in SRQ available
-                                      /* TODO: NACK back.
-                                       */
+                                      /* Construct NACK msg and return it to requesting RMC */
+                                      RMC_Message nack_msg(msgReceived.rpc_id,msgReceived.senders_qp,0/*slot irrelevant*/,'n');
+                                      uint32_t bytesToSend = nack_msg.message_len;
+                                      uint32_t copy = bytesToSend;
+                                      char* packedBuffer = new char[bytesToSend];
+                                      nack_msg.pack(packedBuffer);
+                                      int retval = sendall(sinfo[i].fd,packedBuffer,&bytesToSend);
+                                      if( retval < 0 ) {
+                                          perror("[rmc_rpc] sending NACK failed, w. error:");
+                                      } else if ( bytesToSend < copy) {
+                                          printf("Only sent %d of %d bytes.... Do something about it!!!!\n",bytesToSend,copy);
+                                      } else {}
+                                      delete packedBuffer;
                                   }
                                   break;
                               } // end dispatch of new rpc
@@ -1176,6 +1187,38 @@ int main(int argc, char **argv)
                                       this_nid, 
                                       sending_qp,
                                       slot_to_reuse);
+                              break;
+                          }
+                      case 'n':
+                          {
+                              /* Have to inform the upper level app that the rpc failed.
+                               * (through a CQ entry)
+                               * Params: 
+                               * - QP to terminate to (contained in the message)
+                               * - nack code
+                               */
+                              uint16_t qp_to_terminate = msgReceived.senders_qp;
+                              cq = cqs[qp_to_terminate];
+                              assert( cq->connected );
+                              uint8_t* local_cq_head = &(local_CQ_heads[qp_to_terminate]);
+                              uint8_t* local_cq_SR = &(local_CQ_SRs[qp_to_terminate]);
+                              cq->q[*local_cq_head].sending_nid = i;
+                              cq->q[*local_cq_head].is_nack = true;
+                              // SRQ is what app polls on, set it last
+                              cq->q[*local_cq_head].SR = *local_cq_SR;
+
+                              DLog("Received rpc NACK (\'n\') at rmc #%d. Receive-side QP info is:\n"
+                                      "\t{ qp_to_terminate : %d },\n"
+                                      "\t{ nacking-rmc : %d },\n",
+                                      this_nid, 
+                                      qp_to_terminate,
+                                      i
+                                      );
+                              *local_cq_head += 1;
+                              if(*local_cq_head >= MAX_NUM_WQ) {
+                                  *local_cq_head = 0;
+                                  *local_cq_SR ^= 1;
+                              }
                               break;
                           }
                       default:

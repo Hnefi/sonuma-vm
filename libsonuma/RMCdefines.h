@@ -88,6 +88,7 @@ typedef struct cq_entry {
   uint16_t sending_qp;
   uint64_t slot_idx;
   uint64_t length;
+  bool is_nack;
 } cq_entry_t;
 
 typedef struct rmc_wq {
