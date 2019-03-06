@@ -153,19 +153,16 @@ int kal_reg_ctx(int fd, uint8_t **ctx_ptr, uint32_t num_pages)
   return 0;
 }
 
-/* Msutherl: New version of rmc_send, using paired send/recv slots */
-void rmc_send(rmc_wq_t *wq, char *lbuff_ptr, int lbuff_offset, size_t size, int snid, uint16_t sending_qp, send_metadata_t* send_slot,uint16_t slot_idx, bool send_qp_terminate)
+/* Msutherl: Version of rmc_send that does not use explicit send slots.
+ * - all allocation and return is done by destination RMC
+ */
+void rmc_send(rmc_wq_t *wq, char *lbuff_ptr, int lbuff_offset, size_t size, int snid, uint16_t sending_qp, bool send_qp_terminate)
 {
     uint8_t wq_head = wq->head;
     DLogNoVar("[rmc_send] Entering rmc_send.");
 
-    // setup send slot for RMC
-    send_slot->msg_size = size;
-    send_slot->sending_qp = sending_qp;
-
     while (wq->q[wq_head].valid) {} //wait for WQ head to be ready
     
-    send_slot->wq_entry_idx = wq_head;
     wq->q[wq_head].buf_addr = (uint64_t)lbuff_ptr;
     wq->q[wq_head].buf_offset = lbuff_offset;
 #ifdef PRINT_BUFS
@@ -179,7 +176,6 @@ void rmc_send(rmc_wq_t *wq, char *lbuff_ptr, int lbuff_offset, size_t size, int 
     wq->q[wq_head].valid = 1;
     wq->q[wq_head].SR = wq->SR;
     // Msutherl:
-    wq->q[wq_head].slot_idx = slot_idx;
     wq->q[wq_head].qp_num_at_receiver = sending_qp;
     wq->q[wq_head].send_qp_terminate = send_qp_terminate;
 
@@ -216,16 +212,4 @@ void rmc_recv(rmc_wq_t *wq,int snid,uint16_t sending_qp,uint16_t slot_idx,bool d
         wq->head = 0;
         wq->SR ^= 1;
     }
-}
-
-int get_send_slot(send_metadata_t* slot_data,size_t len)
-{ 
-    for(size_t i = 0; i < len; i++) {
-        int test_val = 1, new_val = 0;
-        bool successful = slot_data[i].valid.compare_exchange_strong(test_val,new_val);
-        if( successful ) { // got slot
-            return slot_data[i].sslot_index;
-        }
-    }
-    return -1; // all slots were full
 }

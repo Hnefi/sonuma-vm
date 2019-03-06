@@ -25,7 +25,7 @@ set(SAMPLE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/sample_code)
 
 set(LIBSON_SOURCES
     ${LIBSONUMA_DIR}/sonuma_daemon.cpp
-    ${LIBSONUMA_DIR}/sonuma_trampoline.c
+    #${LIBSONUMA_DIR}/sonuma_trampoline.c
     )
 
 set(SAMPLE_CODE_FILES

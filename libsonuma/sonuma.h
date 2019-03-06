@@ -68,11 +68,12 @@ typedef struct rpcArgument {
     uint16_t sending_nid;
     cq_entry_t* head;
     void* pointerToAppData; // cast me
+    bool is_nack;
 } rpcArg_t;
 
 typedef void (async_handler)(uint8_t tid, wq_entry_t *head, void *owner);
 typedef void (rpc_handler)(uint16_t sending_nid, char* recv_slot, cq_entry_t *head, void *owner);
-typedef void (receiveCallback)(char* rawRecvBufferPtr, rpcArg_t* argPointer);
+typedef void (receiveCallback)(uint8_t* rawRecvBufferPtr, rpcArg_t* argPointer);
 
 /* Helper */
 // Shamelessly imported from: https://gist.github.com/ccbrown/9722406#file-dumphex-c
@@ -146,7 +147,7 @@ int kal_reg_ctx(int fd, uint8_t **ctx_ptr, uint32_t num_pages);
 void rmc_recv(rmc_wq_t *wq,int snid,uint16_t sending_qp,uint16_t slot_idx,bool dispatch);
 
 /* Msutherl: New version of rmc_send, using paired send/recv slots */
-void rmc_send(rmc_wq_t *wq, char *lbuff_ptr, int lbuff_offset, size_t size, int snid, uint16_t sending_qp, send_metadata_t* send_slot,uint16_t slot_idx,bool send_qp_terminate);
+void rmc_send(rmc_wq_t *wq, char *lbuff_ptr, int lbuff_offset, size_t size, int snid, uint16_t sending_qp,bool send_qp_terminate);
 
 //inline methods
 static inline void rmc_rread_sync(rmc_wq_t *wq, rmc_cq_t *cq, uint8_t *lbuff_base,
@@ -363,7 +364,7 @@ static inline int rmc_drain_cq(rmc_wq_t *wq, rmc_cq_t *cq, async_handler *handle
   return 0;
 }
 
-static inline void rmc_poll_cq_rpc(rmc_cq_t* cq, char** recv_slots, receiveCallback* theRPC, uint16_t* sending_nid, uint16_t* sending_qp,uint16_t* slot_idx,void* argPointerHack)
+static inline void rmc_poll_cq_rpc(rmc_cq_t* cq, uint8_t* recv_slot_base, receiveCallback* theRPC, uint16_t* sending_nid, uint16_t* sending_qp,uint16_t* slot_idx,void* argPointerHack)
 {
     uint8_t cq_tail = cq->tail;
 
@@ -377,17 +378,19 @@ static inline void rmc_poll_cq_rpc(rmc_cq_t* cq, char** recv_slots, receiveCallb
     *sending_qp = cq->q[cq_tail].sending_qp;
     *slot_idx = cq->q[cq_tail].slot_idx;
 
-    char* node_recv_slot = recv_slots[*sending_nid];
+    uint8_t* rpc_recv_slot = recv_slot_base + ((*slot_idx) * MAX_RPC_BYTES);
     // marshal rpc structure
     rpcArg_t args;
     args.sending_nid = *sending_nid;
     args.head = &(cq->q[cq_tail]);
     args.pointerToAppData = argPointerHack;
+    args.is_nack = cq->q[cq_tail].is_nack ;
+
 #ifdef PRINT_BUFS
     DLog("About to call back to the RPC handler itself. Sending NID: %d, slot_idx: %d, length: %d",*sending_nid, *slot_idx, cq->q[cq_tail].length);
-    DumpHex( (node_recv_slot + (MAX_RPC_BYTES*(*slot_idx))), cq->q[cq_tail].length );
+    DumpHex( (rpc_recv_slot ), cq->q[cq_tail].length );
 #endif
-    theRPC((node_recv_slot + (MAX_RPC_BYTES*(*slot_idx))), &args);
+    theRPC((rpc_recv_slot ), &args);
 
     cq->tail = cq->tail + 1;
     //check if CQ reached its end
@@ -397,7 +400,7 @@ static inline void rmc_poll_cq_rpc(rmc_cq_t* cq, char** recv_slots, receiveCallb
     }
 }
 
-static inline void rmc_test_cq_rpc(rmc_cq_t* cq, char** recv_slots, receiveCallback* theRPC,int* sending_nid, uint16_t* sending_qp,uint16_t* slot_idx)
+static inline void rmc_test_cq_rpc(rmc_cq_t* cq, uint8_t* recv_slot_base, receiveCallback* theRPC,int* sending_nid, uint16_t* sending_qp,uint16_t* slot_idx)
 {
   uint8_t cq_tail = cq->tail;
 
@@ -409,13 +412,14 @@ static inline void rmc_test_cq_rpc(rmc_cq_t* cq, char** recv_slots, receiveCallb
       *sending_qp = cq->q[cq_tail].sending_qp;
       *slot_idx = cq->q[cq_tail].slot_idx;
 
+    uint8_t* rpc_recv_slot = recv_slot_base + ((*slot_idx) * MAX_RPC_BYTES);
       // marshal rpc structure
-      char* node_recv_slot = recv_slots[*sending_nid];
       rpcArg_t args;
       args.sending_nid = *sending_nid;
       args.head = &(cq->q[cq_tail]);
       args.pointerToAppData = NULL;
-      theRPC((node_recv_slot + (MAX_RPC_BYTES*(*slot_idx))), &args);
+      args.is_nack = cq->q[cq_tail].is_nack ;
+      theRPC((rpc_recv_slot ), &args);
 
       cq->tail = cq->tail + 1;
       //check if CQ reached its end
@@ -425,27 +429,5 @@ static inline void rmc_test_cq_rpc(rmc_cq_t* cq, char** recv_slots, receiveCallb
       }
   } else *sending_nid = -1;
 }
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#if defined(__STDC__) || defined(__cplusplus)
-
-// can access directly the <atomic> members
-extern int get_send_slot(send_metadata_t* slot_data,size_t len);
-extern int get_send_slot_trampoline(send_metadata_t* slot_data,size_t len);
-
-#else 
-
-extern int get_send_slot( );
-//extern inline int get_send_slot_trampoline();
-extern int get_send_slot_trampoline( );
-
-#endif
-
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* H_SONUMA */

@@ -88,6 +88,7 @@ typedef struct cq_entry {
   uint16_t sending_qp;
   uint64_t slot_idx;
   uint64_t length;
+  bool is_nack;
 } cq_entry_t;
 
 typedef struct rmc_wq {
@@ -131,27 +132,9 @@ typedef struct rpc_srq_entry {
 typedef struct rpc_srq {
     rpc_srq_entry_t q[MAX_NUM_SRQ_SLOTS];
     // head-tail indices
-    uint64_t head, tail;
+    uint16_t head, tail;
+    uint16_t dispatch_slot;
     bool full;
 } rpc_srq_t; 
-
-#ifdef __cplusplus
-#include <atomic> // Msutherl
-#include <cstdio> // Msutherl
-class send_metadata_t {
-    public:
-        std::atomic<int> valid;
-        unsigned sslot_index;
-        uint64_t msg_size;
-        uint16_t sending_qp;
-        uint16_t wq_entry_idx;
-};
-
-#else 
-
-// this is C, forward declare this
-typedef struct send_metadata_t send_metadata_t;
-
-#endif
 
 #endif /* H_RMC_DEFINES */
