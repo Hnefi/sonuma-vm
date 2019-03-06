@@ -169,11 +169,12 @@ void advance_srq_tail_multiple(rpc_srq_t* srq)
 }
 
 static
-int enqueue_in_srq(rpc_srq_t* srq, rpc_srq_entry_t newEntry)
+int enqueue_in_srq(rpc_srq_t* srq, rpc_srq_entry_t* newEntry)
 {
     assert(srq);
     if( !srq_full(srq) ) {
-        srq->q[srq->head] = newEntry;
+        newEntry->slot_idx = srq->head;
+        srq->q[srq->head] = *newEntry;
         srq->q[srq->head].valid = true;
         int old_head = srq->head;
         advance_srq_head(srq);
@@ -1040,9 +1041,8 @@ int main(int argc, char **argv)
                                       rpc_srq_entry_t newEntry;
                                       newEntry.sending_nid = i;
                                       newEntry.length = msgReceived.payload_len;
-                                      int srq_slot = enqueue_in_srq(&rpc_srq,newEntry);
+                                      int srq_slot = enqueue_in_srq(&rpc_srq,&newEntry);
                                       assert(srq_slot >= 0); // checked avail. slot above
-                                      newEntry.slot_idx = srq_slot;
                                       DLog("@ node %u, creating new DIRECT DISP. srq entry:\n"
                                               "\t{ sending_nid : %u },\n"
                                               "\t{ slot_idx : %u },\n"
@@ -1107,9 +1107,8 @@ int main(int argc, char **argv)
                                       newEntry.sending_nid = i;
                                       newEntry.sending_qp = msgReceived.senders_qp;
                                       newEntry.length = msgReceived.payload_len;
-                                      int srq_slot = enqueue_in_srq(&rpc_srq,newEntry);
+                                      int srq_slot = enqueue_in_srq(&rpc_srq,&newEntry);
                                       assert(srq_slot >= 0);
-                                      newEntry.slot_idx = srq_slot;
                                       DLog("@ node %u, creating new srq entry:\n"
                                               "\t{ sending_nid : %u },\n"
                                               "\t{ sending_qp: %u },\n"
