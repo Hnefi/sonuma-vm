@@ -151,6 +151,13 @@ void advance_srq_tail(rpc_srq_t* srq)
     srq->full = false;
 }
 
+static void
+advance_dispatch_slot(rpc_srq_t* srq)
+{
+    assert(srq);
+    srq->dispatch_slot = (srq->dispatch_slot + 1) % MAX_NUM_SRQ_SLOTS;
+}
+
 static
 void advance_srq_tail_multiple(rpc_srq_t* srq)
 {
@@ -200,6 +207,17 @@ void get_srq_tail_entry(rpc_srq_t* srq, rpc_srq_entry_t* tail_entry)
 }
 
 static
+void get_dispatch_entry_from_srq(rpc_srq_t* srq, rpc_srq_entry_t* tail_entry)
+{
+    assert(srq);
+    if(!srq_empty(srq)) {
+        assert(srq->q[srq->dispatch_slot].valid == true);
+        *tail_entry = srq->q[srq->dispatch_slot];
+        advance_dispatch_slot(srq);
+    }
+}
+
+static
 bool reset_srq_entry_invalid(rpc_srq_t* srq, uint16_t idx )
 {
     assert(srq);
@@ -220,6 +238,7 @@ void srq_init(rpc_srq_t* srq)
     }
     srq->tail = 0;
     srq->head = 0;
+    srq->dispatch_slot = 0;
     srq->full = false;
 }
 
@@ -1021,9 +1040,9 @@ int main(int argc, char **argv)
                                       rpc_srq_entry_t newEntry;
                                       newEntry.sending_nid = i;
                                       newEntry.length = msgReceived.payload_len;
-                                      newEntry.slot_idx = rpc_srq.head;
                                       int srq_slot = enqueue_in_srq(&rpc_srq,newEntry);
                                       assert(srq_slot >= 0); // checked avail. slot above
+                                      newEntry.slot_idx = srq_slot;
                                       DLog("@ node %u, creating new DIRECT DISP. srq entry:\n"
                                               "\t{ sending_nid : %u },\n"
                                               "\t{ slot_idx : %u },\n"
@@ -1054,7 +1073,7 @@ int main(int argc, char **argv)
                                       cq->q[*local_cq_head].slot_idx = recv_slot;
                                       cq->q[*local_cq_head].length = msgReceived.getPayloadBytes();
 
-                                      // SRQ is what app polls on, set it last
+                                      // SR is what app polls on, set it last
                                       cq->q[*local_cq_head].SR = *local_cq_SR;
 
                                       DLog("Received rpc SEND RESPONSE (\'s\') at rmc #%d. Receive-side QP info is:\n"
@@ -1088,10 +1107,9 @@ int main(int argc, char **argv)
                                       newEntry.sending_nid = i;
                                       newEntry.sending_qp = msgReceived.senders_qp;
                                       newEntry.length = msgReceived.payload_len;
-                                      newEntry.slot_idx = rpc_srq.head;
                                       int srq_slot = enqueue_in_srq(&rpc_srq,newEntry);
                                       assert(srq_slot >= 0);
-                                      assert((uint16_t) srq_slot == newEntry.slot_idx );
+                                      newEntry.slot_idx = srq_slot;
                                       DLog("@ node %u, creating new srq entry:\n"
                                               "\t{ sending_nid : %u },\n"
                                               "\t{ sending_qp: %u },\n"
@@ -1119,7 +1137,7 @@ int main(int argc, char **argv)
                                           // dispatch head of srq
                                           rpc_srq_entry_t rpc_to_dispatch;
 
-                                          get_srq_tail_entry(&rpc_srq,&rpc_to_dispatch);
+                                          get_dispatch_entry_from_srq(&rpc_srq,&rpc_to_dispatch);
                                           assert(rpc_to_dispatch.valid);
 
                                           // create CQ entry to send rpc to the core.
@@ -1180,14 +1198,12 @@ int main(int argc, char **argv)
 #ifdef DEBUG_RMC
                               assert( msgReceived.rpc_id == 0 ); // for recv/replenish
 #endif
-                              uint16_t sending_qp = msgReceived.senders_qp;
-                              uint8_t slot_to_reuse = msgReceived.slot;
                               DLog("Received rpc RECV (\'g\') at rmc #%d. Send-side QP info is:\n"
                                       "\t{ sender's QP : %d },\n"
                                       "\t{ slot_to_reuse : %d },\n",
                                       this_nid, 
-                                      sending_qp,
-                                      slot_to_reuse);
+                                      msgReceived.senders_qp,
+                                      msgReceived.slot);
                               break;
                           }
                       case 'n':

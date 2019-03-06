@@ -132,7 +132,8 @@ typedef struct rpc_srq_entry {
 typedef struct rpc_srq {
     rpc_srq_entry_t q[MAX_NUM_SRQ_SLOTS];
     // head-tail indices
-    uint64_t head, tail;
+    uint16_t head, tail;
+    uint16_t dispatch_slot;
     bool full;
 } rpc_srq_t; 
 
